@@ -12,6 +12,23 @@ export const apiClient = axios.create({
   },
 });
 
+export const apiService = {
+  fetchDashboard: () => apiClient.get('/api/home/dashboard/'),
+  startTopic: (topicId: number) => apiClient.post(`/api/home/start-topic/${topicId}/`),
+  
+  incrementDailyChallenge: async (challengeId: number, incrementAmount: number = 1) => {
+    try {
+      const resp = await apiClient.post(`/api/home/challenges/${challengeId}/progress/`, {
+        increment: incrementAmount
+      });
+      return resp.data;
+    } catch (e) {
+      console.warn("Failed incrementing challenge progress", e);
+      return null;
+    }
+  }
+};
+
 apiClient.interceptors.request.use(async (config) => {
   const token = await storage.getAccessToken();
   if (token) {

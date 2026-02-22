@@ -18,7 +18,7 @@ class QuestionListView(generics.ListAPIView):
     queryset = Question.objects.filter(is_active=True)
     serializer_class = QuestionSerializer
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['difficulty', 'category', 'language']
+    filterset_fields = ['difficulty', 'specialization', 'language', 'topic']
 
 class SubmitAnswerView(APIView):
     def post(self, request, *args, **kwargs):

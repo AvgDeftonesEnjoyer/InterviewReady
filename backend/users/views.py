@@ -3,11 +3,12 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from .serializers import RegisterSerializer, LoginSerializer, SocialLoginSerializer, TokenResponseSerializer
+from .serializers import RegisterSerializer, LoginSerializer, SocialLoginSerializer, TokenResponseSerializer, OnboardingSerializer
 from .services import AuthService
+from gamification.models import UserProfile
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -76,3 +77,21 @@ class AppleLoginView(APIView):
 # Alias for simplejwt refresh
 class CustomTokenRefreshView(TokenRefreshView):
     permission_classes = [AllowAny]
+
+class OnboardingView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = OnboardingSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Get or create UserProfile
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+        
+        profile.primary_language = serializer.validated_data['language']
+        profile.specialization = serializer.validated_data['specialization']
+        profile.experience_level = serializer.validated_data['experience_level']
+        profile.onboarding_completed = True
+        profile.save()
+        
+        return Response({'onboarding_completed': True}, status=status.HTTP_200_OK)

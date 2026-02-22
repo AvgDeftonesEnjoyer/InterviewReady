@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'learning',
     'ai',
     'interviews',
+    'home',
 ]
 
 MIDDLEWARE = [
@@ -139,6 +140,10 @@ CELERY_BEAT_SCHEDULE = {
     },
     'reset-ai-usage-midnight': {
         'task': 'ai.tasks.reset_daily_ai_usage_task',
+        'schedule': crontab(hour=0, minute=0),
+    },
+    'generate-daily-challenges-midnight': {
+        'task': 'gamification.tasks.generate_daily_challenges_task',
         'schedule': crontab(hour=0, minute=0),
     }
 }

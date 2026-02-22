@@ -16,3 +16,8 @@ class TokenResponseSerializer(serializers.Serializer):
     refresh = serializers.CharField()
     access = serializers.CharField()
     user_id = serializers.IntegerField()
+
+class OnboardingSerializer(serializers.Serializer):
+    language = serializers.CharField(max_length=50)
+    specialization = serializers.CharField(max_length=50)
+    experience_level = serializers.CharField(max_length=50)
