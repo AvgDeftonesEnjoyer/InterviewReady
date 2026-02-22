@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
 import { useProgressStats } from './hooks';
 import { theme } from '../../theme';
 import { ProgressBar } from '../../components/ui/ProgressBar';
-import { Trophy, Flame, TrendingUp, Medal, Star, Target, Zap } from 'lucide-react-native';
+import { Trophy, Flame, TrendingUp, Medal, Star, Target, Zap, Settings } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
@@ -27,6 +29,8 @@ const ACHIEVEMENTS = [
 
 export const ProgressScreen = () => {
   const { data: stats, isLoading } = useProgressStats();
+  const navigation = useNavigation<any>();
+  const { t } = useTranslation();
 
   if (isLoading) {
     return (
@@ -40,7 +44,12 @@ export const ProgressScreen = () => {
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.header}>Your Journey</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.header}>{t('progress.title')}</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.settingsBtn}>
+          <Settings color={theme.colors.text.primary} size={24} />
+        </TouchableOpacity>
+      </View>
 
       {/* Hero Level Badge Card */}
       <LinearGradient
@@ -54,14 +63,14 @@ export const ProgressScreen = () => {
         </View>
         
         <View style={styles.levelInfo}>
-          <Text style={styles.levelTitle}>Level {stats.current_level} Scholar</Text>
-          <Text style={styles.xpText}>{stats.total_xp} Total XP</Text>
+          <Text style={styles.levelTitle}>{t('progress.level')} {stats.current_level}</Text>
+          <Text style={styles.xpText}>{stats.total_xp} {t('progress.total_xp')}</Text>
         </View>
 
         <View style={styles.progressContainer}>
           <View style={styles.progressHeader}>
-             <Text style={styles.progressLabel}>Progress to Level {stats.current_level + 1}</Text>
-             <Text style={styles.progressAmount}>{stats.next_level_xp} XP left</Text>
+             <Text style={styles.progressLabel}>{t('progress.xp_to_next', { level: stats.current_level + 1 })}</Text>
+             <Text style={styles.progressAmount}>{stats.next_level_xp} XP</Text>
           </View>
           <ProgressBar progress={stats.progress_percent} height={12} showPercentage={false} />
         </View>
@@ -75,7 +84,7 @@ export const ProgressScreen = () => {
           </View>
           <View>
             <Text style={styles.statValue}>{stats.streak_days}</Text>
-            <Text style={styles.statLabel}>Day Streak</Text>
+            <Text style={styles.statLabel}>{t('progress.streak')}</Text>
           </View>
         </View>
         
@@ -172,11 +181,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     alignItems: 'center' 
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
   header: { 
     fontSize: theme.typography.size.h1, 
     fontWeight: theme.typography.weight.bold, 
     color: theme.colors.text.primary, 
-    marginBottom: 24 
+  },
+  settingsBtn: {
+    padding: 8,
+    backgroundColor: theme.colors.background.elevated,
+    borderRadius: 12,
   },
   
   heroCard: {

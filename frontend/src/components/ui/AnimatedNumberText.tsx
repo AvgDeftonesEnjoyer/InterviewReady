@@ -1,8 +1,5 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, TextInput } from 'react-native';
-import Animated, { useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
-
-const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text } from 'react-native';
 
 interface AnimatedNumberTextProps {
   value: number;
@@ -11,27 +8,35 @@ interface AnimatedNumberTextProps {
 }
 
 export const AnimatedNumberText: React.FC<AnimatedNumberTextProps> = ({ value, style, duration = 1500 }) => {
-  const animatedValue = useSharedValue(0);
+  const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
-    animatedValue.value = withTiming(value, { duration });
-  }, [value]);
+    let startTimestamp: number | null = null;
+    const startValue = displayValue;
+    const difference = value - startValue;
 
-  const animatedProps = useAnimatedProps(() => {
-    return {
-      text: Math.round(animatedValue.value).toString(),
-      value: Math.round(animatedValue.value).toString(),
+    if (difference === 0) {
+      setDisplayValue(value);
+      return;
+    }
+
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      
+      const easeProgress = 1 - Math.pow(1 - progress, 4);
+      setDisplayValue(Math.round(startValue + difference * easeProgress));
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
     };
-  });
 
-  return (
-    <AnimatedTextInput
-      underlineColorAndroid="transparent"
-      editable={false}
-      animatedProps={animatedProps}
-      style={[styles.text, style]}
-    />
-  );
+    const animationId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationId);
+  }, [value, duration]);
+
+  return <Text style={[styles.text, style]}>{displayValue}</Text>;
 };
 
 const styles = StyleSheet.create({

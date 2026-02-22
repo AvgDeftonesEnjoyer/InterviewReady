@@ -31,6 +31,12 @@ class UserProfile(models.Model):
     
     onboarding_completed = models.BooleanField(default=False)
     
+    ui_language = models.CharField(
+        max_length=5,
+        choices=[('en', 'English'), ('uk', 'Українська')],
+        default='en'
+    )
+    
     # Existing fields
     target_role = models.CharField(max_length=100, blank=True, null=True)
     readiness_score = models.IntegerField(default=0)

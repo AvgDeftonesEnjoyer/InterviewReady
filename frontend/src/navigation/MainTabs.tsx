@@ -1,7 +1,8 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HomeScreen } from '../screens/HomeScreen';
-import { LearningScreen } from '../features/learning/LearningScreen';
+import { LearningTopicsScreen } from '../features/learning/screens/LearningTopicsScreen';
+import { LearningSessionScreen } from '../features/learning/screens/LearningSessionScreen';
 import { InterviewScreen } from '../features/interview/InterviewScreen';
 import { AIPracticeScreen } from '../features/ai/AIPracticeScreen';
 import { ProgressScreen } from '../features/progress/ProgressScreen';
@@ -19,7 +20,7 @@ export const MainTabs = () => {
       }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Learning" component={LearningScreen} />
+      <Tab.Screen name="Learning" component={LearningTopicsScreen} />
       <Tab.Screen name="Interview" component={InterviewScreen} />
       <Tab.Screen name="AI" component={AIPracticeScreen} />
       <Tab.Screen name="Progress" component={ProgressScreen} />

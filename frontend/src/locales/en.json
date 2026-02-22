@@ -1,0 +1,114 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Try again",
+    "save": "Save",
+    "cancel": "Cancel",
+    "next": "Next",
+    "back": "Back",
+    "done": "Done",
+    "offline": "You're offline — showing cached data"
+  },
+  "nav": {
+    "home": "Home",
+    "learning": "Learning",
+    "interview": "Interview",
+    "ai": "AI",
+    "progress": "Progress",
+    "pro": "PRO"
+  },
+  "home": {
+    "greeting_morning": "Good morning,",
+    "greeting_afternoon": "Good afternoon,",
+    "greeting_evening": "Good evening,",
+    "next_up": "NEXT UP",
+    "complete": "{{percent}}% Complete",
+    "your_progress": "Your Progress",
+    "xp_today": "XP Today",
+    "questions": "Questions",
+    "personal_best": "Personal best: {{count}}",
+    "daily_challenges": "Daily Challenges",
+    "resets_in": "Resets in {{time}}",
+    "all_topics_complete": "🎉 All topics complete!",
+    "try_ai": "Try AI Interview to test your skills",
+    "check_tomorrow": "Check back tomorrow for new challenges!",
+    "practice": "Practice",
+    "ai_interview": "AI Interview",
+    "stats": "Stats",
+    "streak_days": "{{count}} Days"
+  },
+  "learning": {
+    "choose_topic": "Choose a Topic",
+    "questions_count": "{{done}}/{{total}} questions",
+    "next_question": "Next Question →",
+    "see_results": "See Results",
+    "correct": "🎉 Correct! +{{xp}} XP",
+    "wrong": "❌ Not quite right",
+    "correct_answer": "Correct answer:",
+    "explanation": "Explanation",
+    "session_complete": "Session Complete!",
+    "accuracy": "Accuracy",
+    "xp_earned": "XP Earned",
+    "topic_mastered": "🎓 Topic Mastered!",
+    "back_to_topics": "← Back to Topics",
+    "continue_learning": "Continue Learning →",
+    "try_ai_interview": "Try AI Interview →",
+    "no_questions": "No questions yet",
+    "day_complete": "Day Complete!",
+    "answered_all": "You've answered all daily questions."
+  },
+  "interview": {
+    "title": "Start Interview",
+    "scripted_mode": "Scripted Mode",
+    "scripted_desc": "Answer pre-defined questions from DB",
+    "ai_mode": "AI Practice Mode",
+    "ai_desc": "Live conversation with HR AI"
+  },
+  "ai": {
+    "title": "AI Interview Sandbox",
+    "hr_bot": "HR BOT",
+    "draft_label": "Draft Your Response",
+    "placeholder": "Start typing your answer here...",
+    "submit": "Submit for Evaluation",
+    "ready_title": "Ready for your AI Interview?",
+    "ready_sub": "Our HR Bot will ask you real interview questions",
+    "start_btn": "▶  Start Interview",
+    "tip": "💡 Tip: Answer as you would in a real interview",
+    "score": "Score",
+    "try_again": "Try Again",
+    "next_question": "Next Question →"
+  },
+  "progress": {
+    "title": "Your Progress",
+    "level": "Level",
+    "streak": "Streak",
+    "days": "{{count}} days",
+    "total_xp": "Total XP",
+    "xp_to_next": "XP to Level {{level}}"
+  },
+  "pro": {
+    "active_title": "PRO Active",
+    "active_sub": "You have unlimited access to AI and all premium features.",
+    "upgrade": "Upgrade to PRO"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Interface Language",
+    "english": "English",
+    "ukrainian": "Українська",
+    "language_changed": "Language updated!"
+  },
+  "onboarding": {
+    "step1_title": "Choose Programming Language",
+    "step2_title": "Choose Specialization",
+    "step3_title": "Your Experience",
+    "junior": "Junior",
+    "junior_sub": "0-1 years",
+    "middle": "Middle",
+    "middle_sub": "1-3 years",
+    "senior": "Senior",
+    "senior_sub": "3+ years",
+    "get_started": "Get Started →"
+  }
+}

@@ -8,6 +8,7 @@ import { apiClient } from '../../api/client';
 import { storage } from '../../utils/storage';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
+import { changeLanguage } from '../../i18n';
 
 // Dummy imports for Social Auth
 // import { GoogleSignin } from '@react-native-google-signin/google-signin';
@@ -31,10 +32,14 @@ export const LoginScreen = () => {
   const onSubmit = async (data: LoginFormData) => {
     try {
       const response = await apiClient.post('/auth/login/', data);
-      const { access, refresh, user_id } = response.data;
+      const { access, refresh, user_id, ui_language } = response.data;
       
       await storage.setAccessToken(access);
       await storage.setRefreshToken(refresh);
+      
+      if (ui_language) {
+        await changeLanguage(ui_language);
+      }
       
       setUser({ id: user_id, email: data.email });
     } catch (error: any) {

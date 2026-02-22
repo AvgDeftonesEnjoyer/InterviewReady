@@ -1,0 +1,114 @@
+{
+  "common": {
+    "loading": "Завантаження...",
+    "error": "Щось пішло не так",
+    "retry": "Спробувати знову",
+    "save": "Зберегти",
+    "cancel": "Скасувати",
+    "next": "Далі",
+    "back": "Назад",
+    "done": "Готово",
+    "offline": "Ви офлайн — показуємо кешовані дані"
+  },
+  "nav": {
+    "home": "Головна",
+    "learning": "Навчання",
+    "interview": "Інтерв'ю",
+    "ai": "ШІ",
+    "progress": "Прогрес",
+    "pro": "PRO"
+  },
+  "home": {
+    "greeting_morning": "Доброго ранку,",
+    "greeting_afternoon": "Добрий день,",
+    "greeting_evening": "Добрий вечір,",
+    "next_up": "ДАЛІ",
+    "complete": "{{percent}}% Виконано",
+    "your_progress": "Ваш Прогрес",
+    "xp_today": "XP Сьогодні",
+    "questions": "Питання",
+    "personal_best": "Рекорд: {{count}}",
+    "daily_challenges": "Щоденні Завдання",
+    "resets_in": "Скидається через {{time}}",
+    "all_topics_complete": "🎉 Всі теми пройдено!",
+    "try_ai": "Спробуй ШІ Інтерв'ю щоб перевірити себе",
+    "check_tomorrow": "Повертайся завтра за новими завданнями!",
+    "practice": "Практика",
+    "ai_interview": "ШІ Інтерв'ю",
+    "stats": "Статистика",
+    "streak_days": "{{count}} Днів"
+  },
+  "learning": {
+    "choose_topic": "Оберіть Тему",
+    "questions_count": "{{done}}/{{total}} питань",
+    "next_question": "Наступне Питання →",
+    "see_results": "Результати",
+    "correct": "🎉 Правильно! +{{xp}} XP",
+    "wrong": "❌ Не зовсім вірно",
+    "correct_answer": "Правильна відповідь:",
+    "explanation": "Пояснення",
+    "session_complete": "Сесію Завершено!",
+    "accuracy": "Точність",
+    "xp_earned": "XP Зароблено",
+    "topic_mastered": "🎓 Тема Опанована!",
+    "back_to_topics": "← До Тем",
+    "continue_learning": "Продовжити Навчання →",
+    "try_ai_interview": "Спробувати ШІ Інтерв'ю →",
+    "no_questions": "Питань ще немає",
+    "day_complete": "День Завершено!",
+    "answered_all": "Ви відповіли на всі денні питання."
+  },
+  "interview": {
+    "title": "Розпочати Інтерв'ю",
+    "scripted_mode": "Скриптований Режим",
+    "scripted_desc": "Відповідай на наперед визначені питання",
+    "ai_mode": "Режим ШІ Практики",
+    "ai_desc": "Жива розмова з ШІ HR"
+  },
+  "ai": {
+    "title": "ШІ Пісочниця Інтерв'ю",
+    "hr_bot": "ШІ БОТ",
+    "draft_label": "Ваша Відповідь",
+    "placeholder": "Почніть писати відповідь тут...",
+    "submit": "Надіслати на Оцінку",
+    "ready_title": "Готові до ШІ Інтерв'ю?",
+    "ready_sub": "Наш ШІ HR задасть вам реальні питання",
+    "start_btn": "▶  Розпочати Інтерв'ю",
+    "tip": "💡 Порада: Відповідай як на справжньому інтерв'ю",
+    "score": "Оцінка",
+    "try_again": "Спробувати Знову",
+    "next_question": "Наступне Питання →"
+  },
+  "progress": {
+    "title": "Ваш Прогрес",
+    "level": "Рівень",
+    "streak": "Серія",
+    "days": "{{count}} днів",
+    "total_xp": "Всього XP",
+    "xp_to_next": "XP до Рівня {{level}}"
+  },
+  "pro": {
+    "active_title": "PRO Активний",
+    "active_sub": "У вас необмежений доступ до ШІ та всіх преміум функцій.",
+    "upgrade": "Перейти на PRO"
+  },
+  "settings": {
+    "title": "Налаштування",
+    "language": "Мова Інтерфейсу",
+    "english": "English",
+    "ukrainian": "Українська",
+    "language_changed": "Мову оновлено!"
+  },
+  "onboarding": {
+    "step1_title": "Оберіть Мову Програмування",
+    "step2_title": "Оберіть Спеціалізацію",
+    "step3_title": "Ваш Досвід",
+    "junior": "Junior",
+    "junior_sub": "0-1 рік",
+    "middle": "Middle",
+    "middle_sub": "1-3 роки",
+    "senior": "Senior",
+    "senior_sub": "3+ роки",
+    "get_started": "Розпочати →"
+  }
+}

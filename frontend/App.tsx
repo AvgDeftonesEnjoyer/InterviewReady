@@ -1,14 +1,20 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RootNavigator } from './src/navigation';
 import { useAuthStore } from './src/store/useAuthStore';
 import { storage } from './src/utils/storage';
 import { Toaster } from 'react-hot-toast';
+import { initI18n } from './src/i18n';
 
 const queryClient = new QueryClient();
 
 export default function App() {
   const { setUser, setLoading, isLoading } = useAuthStore();
+  const [i18nReady, setI18nReady] = useState(false);
+
+  useEffect(() => {
+    initI18n().then(() => setI18nReady(true));
+  }, []);
 
   useEffect(() => {
     // Attempt to restore session on launch
@@ -29,7 +35,7 @@ export default function App() {
     restoreSession();
   }, [setLoading, setUser]);
 
-  if (isLoading) return null; // Can render Splash Screen here
+  if (isLoading || !i18nReady) return null; // Can render Splash Screen here
 
   return (
     <QueryClientProvider client={queryClient}>

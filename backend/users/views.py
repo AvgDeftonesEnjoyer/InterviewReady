@@ -25,7 +25,11 @@ class RegisterView(APIView):
                 password=serializer.validated_data['password'],
                 username=serializer.validated_data.get('username')
             )
-            data = {'user_id': user.id, **tokens}
+            data = {
+                'user_id': user.id, 
+                'ui_language': getattr(user.profile, 'ui_language', 'en') if hasattr(user, 'profile') else 'en',
+                **tokens
+            }
             return Response(data, status=status.HTTP_201_CREATED)
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -43,7 +47,11 @@ class LoginView(APIView):
                 email=serializer.validated_data['email'],
                 password=serializer.validated_data['password']
             )
-            data = {'user_id': user.id, **tokens}
+            data = {
+                'user_id': user.id, 
+                'ui_language': getattr(user.profile, 'ui_language', 'en') if hasattr(user, 'profile') else 'en',
+                **tokens
+            }
             return Response(data, status=status.HTTP_200_OK)
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
@@ -95,3 +103,21 @@ class OnboardingView(APIView):
         profile.save()
         
         return Response({'onboarding_completed': True}, status=status.HTTP_200_OK)
+
+class UpdateLanguageView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        lang = request.data.get('language')
+        if lang not in ['en', 'uk']:
+            return Response(
+                {'error': 'Invalid language. Use: en, uk'},
+                status=400
+            )
+        profile = request.user.profile
+        profile.ui_language = lang
+        profile.save()
+        return Response({
+            'language': lang,
+            'message': 'Language updated successfully'
+        })

@@ -12,10 +12,13 @@ import { useAuthStore } from '../store/useAuthStore';
 import { apiClient } from '../api/client';
 import { useFocusEffect } from '@react-navigation/native';
 import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../hooks/useLanguage';
 import { storage } from '../utils/storage';
 import { getTimeUntilMidnight } from '../utils/time';
 
 export const HomeScreen = ({ navigation }: any) => {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const [data, setData] = useState<any>(null);
@@ -93,6 +96,12 @@ export const HomeScreen = ({ navigation }: any) => {
     };
   });
 
+  const handleLanguageToggle = () => {
+    if (langLoading) return;
+    const nextLang = i18n.language === 'en' ? 'uk' : 'en';
+    switchLanguage(nextLang);
+  };
+
   const getLanguageIcon = (lang: string) => {
     switch(lang?.toLowerCase()) {
       case 'python': return '🐍 ';
@@ -142,12 +151,23 @@ export const HomeScreen = ({ navigation }: any) => {
         {/* Header Section */}
         <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
           <View>
-            <Text style={styles.greeting}>{data?.user?.greeting || 'Hello'},</Text>
+            <Text style={styles.greeting}>{data?.user?.greeting || t('home.greeting_morning')}</Text>
             <Text style={styles.name}>{data?.user?.name || 'Explorer'} 👋</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Progress')}>
-            <StreakBadge count={data?.streak?.current || 0} />
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity 
+              style={styles.langToggleBtn} 
+              onPress={handleLanguageToggle}
+              disabled={langLoading}
+            >
+              <Text style={styles.langToggleText}>
+                {i18n.language === 'en' ? '🇺🇸 EN' : '🇺🇦 UK'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Progress')}>
+              <StreakBadge count={data?.streak?.current || 0} />
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* Continue Learning Highlight Card */}
@@ -162,7 +182,7 @@ export const HomeScreen = ({ navigation }: any) => {
               >
                 <View style={styles.heroContent}>
                   <View>
-                    <Text style={styles.heroSubtitle}>NEXT UP</Text>
+                    <Text style={styles.heroSubtitle}>{t('home.next_up')}</Text>
                     <Text style={styles.heroTitle}>
                       {getLanguageIcon(data.next_up.language)}{data.next_up.topic}
                     </Text>
@@ -178,57 +198,57 @@ export const HomeScreen = ({ navigation }: any) => {
                     colorEnd="#ffffff" 
                   />
                   <View style={styles.rowBetween}>
-                    <Text style={styles.heroProgressText}>{data.next_up.progress_percent}% Complete</Text>
-                    <Text style={styles.heroRemainingText}>{100 - data.next_up.progress_percent}% remaining</Text>
+                    <Text style={styles.heroProgressText}>{t('home.complete', { percent: data.next_up.progress_percent })}</Text>
+                    <Text style={styles.heroRemainingText}>{100 - data.next_up.progress_percent}%</Text>
                   </View>
                 </View>
               </LinearGradient>
             </TouchableOpacity>
           ) : (
             <View style={[styles.heroCardContainer, styles.heroCardEmpty]}>
-              <Text style={styles.heroTitleEmpty}>🎉 All topics complete!</Text>
-              <Text style={styles.heroSubtitleEmpty}>Try AI Interview to test your skills</Text>
+              <Text style={styles.heroTitleEmpty}>{t('home.all_topics_complete')}</Text>
+              <Text style={styles.heroSubtitleEmpty}>{t('home.try_ai')}</Text>
             </View>
           )}
         </Animated.View>
 
         {/* Quick Stats Grid */}
         <Animated.View entering={FadeInDown.delay(300).springify()}>
-          <Text style={styles.sectionTitle}>Your Progress</Text>
+          <Text style={styles.sectionTitle}>{t('home.your_progress')}</Text>
           <View style={styles.statsGrid}>
             <StatCard 
               icon={Zap} 
               number={isNewUser ? '—' : data?.progress_today?.xp || 0} 
-              label="XP Today" 
+              label={t('home.xp_today')} 
               color="#fbbf24"
               animate={!isNewUser}
-              trendLabel={data?.progress_today?.xp > data?.progress_today?.xp_yesterday ? `▲ +${data.progress_today.xp - data.progress_today.xp_yesterday} vs yesterday` : undefined}
+              trendLabel={data?.progress_today?.xp > data?.progress_today?.xp_yesterday ? `▲ +${data.progress_today.xp - data.progress_today.xp_yesterday}` : undefined}
             />
             <StatCard 
               icon={Target} 
               number={isNewUser ? '—' : data?.progress_today?.questions_answered || 0} 
-              label="Questions" 
+              label={t('home.questions')} 
               color="#22c55e"
               animate={!isNewUser}
-              caption={`Personal best: ${data?.progress_today?.personal_best_questions || 0}`}
+              caption={t('home.personal_best', { count: data?.progress_today?.personal_best_questions || 0 })}
             />
           </View>
         </Animated.View>
 
         {/* Quick Actions */}
         <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.quickActions}>
-          <QuickActionBtn icon={<BookOpen size={20} color="#fff" />} label="Practice" onPress={() => navigation.navigate('Learning')} />
-          <QuickActionBtn icon={<Brain size={20} color="#fff" />} label="AI Interview" onPress={() => navigation.navigate('AI')} />
-          <QuickActionBtn icon={<BarChart2 size={20} color="#fff" />} label="Stats" onPress={() => navigation.navigate('Progress')} />
+          <QuickActionBtn icon={<BookOpen size={20} color="#fff" />} label={t('home.practice')} onPress={() => navigation.navigate('Learning')} />
+          <QuickActionBtn icon={<Brain size={20} color="#fff" />} label={t('home.ai_interview')} onPress={() => navigation.navigate('AI')} />
+          <QuickActionBtn icon={<BarChart2 size={20} color="#fff" />} label={t('home.stats')} onPress={() => navigation.navigate('Progress')} />
         </Animated.View>
 
         {/* Daily Challenge Card System */}
         <Animated.View entering={FadeInDown.delay(500).springify()}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Daily Challenges</Text>
+            <Text style={styles.sectionTitle}>{t('home.daily_challenges')}</Text>
             <View style={styles.timerBadge}>
               <Clock size={12} color={theme.colors.text.secondary} />
-              <Text style={styles.timerBadgeText}>Resets in {timeRemaining}</Text>
+              <Text style={styles.timerBadgeText}>{t('home.resets_in', { time: timeRemaining })}</Text>
             </View>
           </View>
           
@@ -236,8 +256,8 @@ export const HomeScreen = ({ navigation }: any) => {
             {data?.daily_challenges?.length > 0 ? (
               data.daily_challenges.every((c: any) => c.is_completed) ? (
                 <View style={styles.allDoneCard}>
-                  <Text style={styles.allDoneTitle}>🎉 All challenges complete!</Text>
-                  <Text style={styles.allDoneSubtitle}>Come back tomorrow for new ones.</Text>
+                  <Text style={styles.allDoneTitle}>{t('home.all_topics_complete')}</Text>
+                  <Text style={styles.allDoneSubtitle}>{t('home.check_tomorrow')}</Text>
                 </View>
               ) : (
                 data.daily_challenges.map((challenge: any, index: number) => {
@@ -312,7 +332,7 @@ export const HomeScreen = ({ navigation }: any) => {
               )
             ) : (
               <View style={styles.challengeCard}>
-                <Text style={styles.challengeTitle}>Check back tomorrow for new challenges!</Text>
+                <Text style={styles.challengeTitle}>{t('home.check_tomorrow')}</Text>
               </View>
             )}
           </View>
@@ -355,6 +375,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 32,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  langToggleBtn: {
+    backgroundColor: theme.colors.background.elevated,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border.subtle,
+  },
+  langToggleText: {
+    color: theme.colors.text.primary,
+    fontWeight: theme.typography.weight.bold,
+    fontSize: 14,
   },
   greeting: {
     fontSize: 14,
