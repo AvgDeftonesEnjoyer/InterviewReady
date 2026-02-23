@@ -1,9 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Home, BookOpen, MessageSquare, Compass, Award, Star } from 'lucide-react-native';
+import { Home, BookOpen, Cpu, User } from 'lucide-react-native';
 import { theme } from '../../theme';
-import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 export default function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   return (
@@ -38,13 +37,10 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
           });
         };
 
-        // Select correct icon based on route
-        let IconComponent = Home;
+        let IconComponent: any = Home;
         if (route.name === 'Learning') IconComponent = BookOpen;
-        else if (route.name === 'Interview') IconComponent = MessageSquare;
-        else if (route.name === 'AI') IconComponent = Compass;
-        else if (route.name === 'Progress') IconComponent = Award;
-        else if (route.name === 'PRO') IconComponent = Star;
+        else if (route.name === 'AI') IconComponent = Cpu;
+        else if (route.name === 'Profile') IconComponent = User;
 
         return (
           <TouchableOpacity
@@ -58,21 +54,13 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
             style={styles.tabItem}
           >
             <View style={styles.iconContainer}>
-              {isFocused && (
-                <View style={styles.glowIndicator} />
-              )}
-              <IconComponent 
-                size={22} 
-                color={isFocused ? (route.name === 'PRO' ? theme.colors.status.warning : theme.colors.primary.DEFAULT) : theme.colors.text.muted} 
+              {isFocused && <View style={styles.glowIndicator} />}
+              <IconComponent
+                size={22}
+                color={isFocused ? theme.colors.primary.DEFAULT : theme.colors.text.muted}
                 strokeWidth={isFocused ? 2.5 : 2}
               />
-              <Text 
-                style={[
-                  styles.tabLabel, 
-                  isFocused && styles.tabLabelFocused,
-                  isFocused && route.name === 'PRO' && { color: theme.colors.status.warning }
-                ]}
-              >
+              <Text style={[styles.tabLabel, isFocused && styles.tabLabelFocused]}>
                 {label as string}
               </Text>
             </View>
@@ -86,7 +74,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
 const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
-    height: 80, // Taller for iOS styles
+    height: 80,
     backgroundColor: theme.colors.background.modal,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border.subtle,
@@ -94,7 +82,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingBottom: 20, // SafeArea substitute
+    paddingBottom: 20,
     paddingTop: 10,
     elevation: 8,
   },
@@ -113,11 +101,10 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 4,
     color: theme.colors.text.muted,
-    fontWeight: theme.typography.weight.medium,
   },
   tabLabelFocused: {
     color: theme.colors.primary.DEFAULT,
-    fontWeight: theme.typography.weight.bold,
+    fontWeight: 'bold',
   },
   glowIndicator: {
     position: 'absolute',
@@ -131,5 +118,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.8,
     shadowRadius: 8,
     elevation: 10,
-  }
+  },
 });

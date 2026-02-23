@@ -46,7 +46,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
   const [specialization, setSpecialization] = useState('');
   const [experience, setExperience] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user } = useAuthStore(); // Ensure context uses the user
+  const { setOnboardingCompleted } = useAuthStore();
 
   const handleNext = async () => {
     if (step === 1 && language) setStep(2);
@@ -59,8 +59,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
           specialization,
           experience_level: experience
         });
-        // Normally, update auth store user context or navigate to App Stack
-        navigation.replace('MainTabs', { screen: 'Home' });
+        setOnboardingCompleted(true);
       } catch (error) {
         console.error('Failed formatting onboarding', error);
       } finally {

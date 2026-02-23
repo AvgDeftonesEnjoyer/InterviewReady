@@ -2,11 +2,8 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HomeScreen } from '../screens/HomeScreen';
 import { LearningTopicsScreen } from '../features/learning/screens/LearningTopicsScreen';
-import { LearningSessionScreen } from '../features/learning/screens/LearningSessionScreen';
-import { InterviewScreen } from '../features/interview/InterviewScreen';
 import { AIPracticeScreen } from '../features/ai/AIPracticeScreen';
-import { ProgressScreen } from '../features/progress/ProgressScreen';
-import { SubscriptionScreen } from '../features/subscription/SubscriptionScreen'; // Adding Sub as Profile stand-in for now
+import { ProfileScreen } from '../screens/ProfileScreen';
 import CustomTabBar from '../components/navigation/CustomTabBar';
 
 const Tab = createBottomTabNavigator();
@@ -21,10 +18,8 @@ export const MainTabs = () => {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Learning" component={LearningTopicsScreen} />
-      <Tab.Screen name="Interview" component={InterviewScreen} />
       <Tab.Screen name="AI" component={AIPracticeScreen} />
-      <Tab.Screen name="Progress" component={ProgressScreen} />
-      <Tab.Screen name="PRO" component={SubscriptionScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 };

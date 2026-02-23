@@ -1,8 +1,16 @@
 from django.urls import path
-from .views import StartInterviewView, InterviewMessageView, FinishInterviewView
+from .views import (
+    QuotaView,
+    StartInterviewView,
+    SendMessageView,
+    HistoryView,
+    TranscribeView,
+)
 
 urlpatterns = [
-    path('start/', StartInterviewView.as_view(), name='start_interview'),
-    path('message/', InterviewMessageView.as_view(), name='interview_message'),
-    path('finish/', FinishInterviewView.as_view(), name='finish_interview'),
+    path('quota/', QuotaView.as_view(), name='interview_quota'),
+    path('start/', StartInterviewView.as_view(), name='interview_start'),
+    path('<int:session_id>/message/', SendMessageView.as_view(), name='interview_message'),
+    path('<int:session_id>/history/', HistoryView.as_view(), name='interview_history'),
+    path('transcribe/', TranscribeView.as_view(), name='interview_transcribe'),
 ]

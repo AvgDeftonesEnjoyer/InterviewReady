@@ -47,9 +47,11 @@ class LoginView(APIView):
                 email=serializer.validated_data['email'],
                 password=serializer.validated_data['password']
             )
+            profile = getattr(user, 'profile', None)
             data = {
                 'user_id': user.id, 
-                'ui_language': getattr(user.profile, 'ui_language', 'en') if hasattr(user, 'profile') else 'en',
+                'ui_language': getattr(profile, 'ui_language', 'en') if profile else 'en',
+                'onboarding_completed': getattr(profile, 'onboarding_completed', False) if profile else False,
                 **tokens
             }
             return Response(data, status=status.HTTP_200_OK)
@@ -121,3 +123,34 @@ class UpdateLanguageView(APIView):
             'language': lang,
             'message': 'Language updated successfully'
         })
+
+
+class MeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        profile = getattr(user, 'profile', None)
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'primary_language': getattr(profile, 'primary_language', None),
+            'specialization': getattr(profile, 'specialization', None),
+            'experience_level': getattr(profile, 'experience_level', None),
+            'ui_language': getattr(profile, 'ui_language', 'en'),
+            'total_xp': getattr(profile, 'total_xp', 0),
+            'current_level': getattr(profile, 'current_level', 1),
+        })
+
+    def patch(self, request):
+        user = request.user
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+
+        allowed_fields = ['primary_language', 'specialization', 'experience_level', 'ui_language']
+        for field in allowed_fields:
+            if field in request.data:
+                setattr(profile, field, request.data[field])
+
+        profile.save()
+        return Response({'message': 'Profile updated successfully'})

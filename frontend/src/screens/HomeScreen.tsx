@@ -18,7 +18,8 @@ import { storage } from '../utils/storage';
 import { getTimeUntilMidnight } from '../utils/time';
 
 export const HomeScreen = ({ navigation }: any) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { switchLanguage, loading: langLoading } = useLanguage();
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const [data, setData] = useState<any>(null);

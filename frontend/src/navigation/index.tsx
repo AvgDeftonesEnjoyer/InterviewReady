@@ -14,17 +14,25 @@ const AppStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="MainTabs" component={MainTabs} />
     <Stack.Screen name="LearningSession" component={LearningSessionScreen} />
-    <Stack.Screen name="Onboarding" component={OnboardingScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
   </Stack.Navigator>
 );
 
+const OnboardingStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+  </Stack.Navigator>
+);
+
 export const RootNavigator = () => {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, onboardingCompleted } = useAuthStore();
 
   return (
     <NavigationContainer>
-      {isAuthenticated ? <AppStack /> : <AuthStack />}
+      {!isAuthenticated && <AuthStack />}
+      {isAuthenticated && !onboardingCompleted && <OnboardingStack />}
+      {isAuthenticated && onboardingCompleted && <AppStack />}
     </NavigationContainer>
   );
 };
+

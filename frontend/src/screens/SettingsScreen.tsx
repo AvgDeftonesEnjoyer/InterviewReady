@@ -1,21 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
-import { useLanguage } from '../hooks/useLanguage';
 import { ArrowLeft } from 'lucide-react-native';
 
 export const SettingsScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
-  const { t, i18n } = useTranslation();
-  const { switchLanguage, loading } = useLanguage();
-
-  const handleLanguageSwitch = async (lang: 'en' | 'uk') => {
-    if (i18n.language !== lang) {
-      await switchLanguage(lang);
-    }
-  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -23,41 +13,50 @@ export const SettingsScreen = ({ navigation }: any) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <ArrowLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('settings.title')}</Text>
+        <Text style={styles.headerTitle}>Advanced Settings</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.content}>
-        <Text style={styles.sectionTitle}>{t('settings.language')}</Text>
-        
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.sectionTitle}>Notifications</Text>
         <View style={styles.card}>
-          <TouchableOpacity 
-            style={[styles.langOption, i18n.language === 'en' && styles.activeLang]} 
-            onPress={() => handleLanguageSwitch('en')}
-            disabled={loading}
-          >
-            <Text style={[styles.langText, i18n.language === 'en' && styles.activeLangText]}>English</Text>
-            {i18n.language === 'en' && <Text style={styles.checkIcon}>✅</Text>}
-          </TouchableOpacity>
-          
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Daily Reminder</Text>
+            <Text style={styles.comingSoon}>Coming soon</Text>
+          </View>
           <View style={styles.divider} />
-          
-          <TouchableOpacity 
-            style={[styles.langOption, i18n.language === 'uk' && styles.activeLang]} 
-            onPress={() => handleLanguageSwitch('uk')}
-            disabled={loading}
-          >
-            <Text style={[styles.langText, i18n.language === 'uk' && styles.activeLangText]}>Українська</Text>
-            {i18n.language === 'uk' && <Text style={styles.checkIcon}>✅</Text>}
-          </TouchableOpacity>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Streak Alerts</Text>
+            <Text style={styles.comingSoon}>Coming soon</Text>
+          </View>
         </View>
 
-        {loading && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={theme.colors.primary.DEFAULT} />
+        <Text style={styles.sectionTitle}>Privacy</Text>
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Analytics</Text>
+            <Text style={styles.comingSoon}>Coming soon</Text>
           </View>
-        )}
-      </View>
+        </View>
+
+        <Text style={styles.sectionTitle}>About</Text>
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Version</Text>
+            <Text style={styles.valueText}>1.0.0</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Terms of Service</Text>
+            <Text style={styles.comingSoon}>→</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Privacy Policy</Text>
+            <Text style={styles.comingSoon}>→</Text>
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 };
@@ -87,13 +86,17 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+    paddingBottom: 60,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: 'bold',
-    color: theme.colors.text.secondary,
-    marginBottom: 12,
+    color: theme.colors.text.muted,
     textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: 24,
+    marginBottom: 10,
+    marginLeft: 4,
   },
   card: {
     backgroundColor: theme.colors.background.card,
@@ -102,36 +105,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border.subtle,
   },
-  langOption: {
+  row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 18,
   },
-  activeLang: {
-    backgroundColor: 'rgba(108, 99, 255, 0.1)',
-  },
-  langText: {
-    fontSize: 18,
+  rowLabel: {
+    fontSize: 16,
     color: theme.colors.text.primary,
   },
-  activeLangText: {
-    color: theme.colors.primary.light,
-    fontWeight: 'bold',
+  valueText: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
+  },
+  comingSoon: {
+    fontSize: 13,
+    color: theme.colors.text.muted,
+    fontStyle: 'italic',
   },
   divider: {
     height: 1,
     backgroundColor: theme.colors.border.subtle,
-    marginLeft: 20,
+    marginLeft: 18,
   },
-  checkIcon: {
-    fontSize: 16,
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 16,
-  }
 });

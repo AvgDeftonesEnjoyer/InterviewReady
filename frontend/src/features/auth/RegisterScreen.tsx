@@ -33,7 +33,7 @@ export const RegisterScreen = () => {
       await storage.setAccessToken(access);
       await storage.setRefreshToken(refresh);
       
-      setUser({ id: user_id, email: data.email });
+      setUser({ id: user_id, email: data.email, username: data.username }, false);
     } catch (error: any) {
       console.error('Registration Error Object:', error);
       console.error('Registration Response Data:', error.response?.data);

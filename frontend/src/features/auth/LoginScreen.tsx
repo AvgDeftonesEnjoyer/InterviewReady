@@ -32,7 +32,7 @@ export const LoginScreen = () => {
   const onSubmit = async (data: LoginFormData) => {
     try {
       const response = await apiClient.post('/auth/login/', data);
-      const { access, refresh, user_id, ui_language } = response.data;
+      const { access, refresh, user_id, ui_language, onboarding_completed } = response.data;
       
       await storage.setAccessToken(access);
       await storage.setRefreshToken(refresh);
@@ -41,7 +41,7 @@ export const LoginScreen = () => {
         await changeLanguage(ui_language);
       }
       
-      setUser({ id: user_id, email: data.email });
+      setUser({ id: user_id, email: data.email }, !!onboarding_completed);
     } catch (error: any) {
       console.error('Login Error Object:', error);
       console.error('Login Response Data:', error.response?.data);

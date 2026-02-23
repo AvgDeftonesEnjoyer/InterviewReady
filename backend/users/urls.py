@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegisterView, LoginView, GoogleLoginView, AppleLoginView, CustomTokenRefreshView, OnboardingView, UpdateLanguageView
+from .views import RegisterView, LoginView, GoogleLoginView, AppleLoginView, CustomTokenRefreshView, OnboardingView, UpdateLanguageView, MeView
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
@@ -9,4 +9,5 @@ urlpatterns = [
     path('apple/', AppleLoginView.as_view(), name='apple_login'),
     path('onboarding/', OnboardingView.as_view(), name='onboarding'),
     path('language/', UpdateLanguageView.as_view(), name='update_language'),
+    path('me/', MeView.as_view(), name='me'),
 ]
