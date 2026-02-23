@@ -15,15 +15,20 @@ class SubscriptionService:
         ).order_by('-started_at').first()
 
     @staticmethod
-    def is_pro(user: User) -> bool:
+    def get_plan(user: User) -> str:
+        """Returns user's plan: 'FREE', 'PRO', or 'PRO_PLUS'."""
         if user.is_internal_tester:
-            return True
-        
+            return 'PRO_PLUS'
+
         active_sub = SubscriptionService.get_active_subscription(user)
-        if active_sub and active_sub.plan == 'PRO':
-            return True
-            
-        return False
+        if active_sub:
+            return active_sub.plan
+        return 'FREE'
+
+    @staticmethod
+    def is_pro(user: User) -> bool: 
+        plan = SubscriptionService.get_plan(user)
+        return plan in ['PRO', 'PRO_PLUS']
 
     @staticmethod
     def check_feature_access(user: User, feature_name: str) -> bool:

@@ -8,6 +8,8 @@ import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { LearningSessionScreen } from '../features/learning/screens/LearningSessionScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 
+import { SubscriptionScreen } from '../screens/SubscriptionScreen';
+
 const Stack = createNativeStackNavigator();
 
 const AppStack = () => (
@@ -15,6 +17,11 @@ const AppStack = () => (
     <Stack.Screen name="MainTabs" component={MainTabs} />
     <Stack.Screen name="LearningSession" component={LearningSessionScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
+    <Stack.Screen 
+      name="Subscription" 
+      component={SubscriptionScreen} 
+      options={{ presentation: 'modal' }} 
+    />
   </Stack.Navigator>
 );
 

@@ -196,20 +196,21 @@ export const ProfileScreen = () => {
 
         {/* Subscription */}
         <Text style={styles.sectionTitle}>Subscription</Text>
-        <View style={[styles.card, styles.proCard]}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Subscription')}
+          style={[styles.card, styles.subscripRow]}
+        >
           <View style={styles.proHeader}>
             <View style={styles.proIconWrap}>
               <Star size={20} color="#fbbf24" fill="#fbbf24" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.proTitle}>Free Plan</Text>
-              <Text style={styles.proSubtitle}>Upgrade to PRO for unlimited access</Text>
+              <Text style={styles.proTitle}>Manage Subscription</Text>
+              <Text style={styles.proSubtitle}>View plans and upgrade to PRO</Text>
             </View>
+            <ChevronRight size={16} color={theme.colors.text.muted} />
           </View>
-          <TouchableOpacity style={styles.upgradeBtn}>
-            <Text style={styles.upgradeBtnText}>⚡ Upgrade to PRO</Text>
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
 
         {/* Danger Zone */}
         <Text style={styles.sectionTitle}>Account</Text>

@@ -5,13 +5,26 @@ import {
 } from 'react-native';
 import { useEvaluateAI } from './hooks';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bot, Play, ArrowRight, RefreshCw } from 'lucide-react-native';
+import { Bot, Play, ArrowRight, RefreshCw, XCircle } from 'lucide-react-native';
+import Reanimated, { FadeInDown } from 'react-native-reanimated';
+import { apiClient } from '../../api/client';
+import { useNavigation } from '@react-navigation/native';
 
 type Phase = 'START' | 'ACTIVE' | 'EVALUATION';
 
 export const AIPracticeScreen = () => {
+  const navigation = useNavigation<any>();
   const [phase, setPhase] = useState<Phase>('START');
   
+  // New Setup States
+  const [selectedMode, setSelectedMode] = useState<'hr' | 'tech' | 'combined' | null>(null);
+  const [selectedLang, setSelectedLang] = useState<string | null>(null);
+  const [questionCount, setQuestionCount] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [quota, setQuota] = useState<{ remaining: number, limit: number, can_start: boolean } | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [sessionId, setSessionId] = useState<number | null>(null);
+
   const [question, setQuestion] = useState('Tell me about your experience with building scalable React Native applications. What challenges did you face?');
   const [answer, setAnswer] = useState('');
   const [feedback, setFeedback] = useState<{ evaluation: string; followup: string; score?: number } | null>(null);
@@ -79,14 +92,58 @@ export const AIPracticeScreen = () => {
     }
   }, [phase, modalSlideAnim]);
 
+  // Fetch Quota
+  useEffect(() => {
+    const fetchQuota = async () => {
+      try {
+        const { data } = await apiClient.get('/interviews/quota/');
+        setQuota(data);
+        if (!data.can_start) {
+          setShowPaywall(true);
+        }
+      } catch (err) {
+        console.error('Failed to get quota', err);
+      }
+    };
+    fetchQuota();
+  }, [phase]);
+
+  const canStart =
+    selectedMode !== null &&
+    (selectedMode === 'hr' || selectedLang !== null) &&
+    questionCount !== null &&
+    !isLoading;
+
   const handleStartPressIn = () => Animated.spring(btnScaleAnim, { toValue: 0.97, useNativeDriver: true }).start();
   const handleStartPressOut = () => Animated.spring(btnScaleAnim, { toValue: 1, useNativeDriver: true }).start();
 
-  const handleStart = () => {
-    setPhase('ACTIVE');
-    setAnswer('');
-    setFeedback(null);
-    setTimer(0);
+  const handleStart = async () => {
+    if (!canStart || isLoading) return;
+    setIsLoading(true);
+
+    try {
+      const response = await apiClient.post('/interviews/start/', {
+        mode: selectedMode,
+        language: selectedLang || '',
+        question_count: questionCount,
+      });
+
+      setSessionId(response.data.session_id);
+      setQuestion(response.data.message);
+      
+      setPhase('ACTIVE');
+      setAnswer('');
+      setFeedback(null);
+      setTimer(0);
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        setShowPaywall(true);
+      } else {
+        Alert.alert('Error', 'Could not start interview.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSubmit = () => {
@@ -269,61 +326,174 @@ export const AIPracticeScreen = () => {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {phase === 'START' && (
+      {phase === 'START' && showPaywall && (
         <View style={styles.lobbyContainer}>
-          {/* Hero Section */}
-          <View style={styles.lobbyHero}>
-            <Animated.View style={[styles.heroOrb, { transform: [{ scale: pulseAnim }] }]}>
-              <View style={styles.heroAvatar}>
-                <Bot size={40} color="#FFF" />
+          <View style={styles.paywallBox}>
+             <View style={{alignItems: 'center', marginBottom: 20}}>
+               <XCircle size={48} color="#EF4444" />
+             </View>
+             <Text style={styles.paywallTitle}>Daily Limit Reached</Text>
+             <Text style={styles.paywallSubtitle}>You've used all interviews for today</Text>
+
+             <TouchableOpacity style={styles.planCard} onPress={() => navigation.navigate('Subscription')}>
+                <Text style={styles.planFeature}>💎 PRO    5/day   $5/mo  →</Text>
+             </TouchableOpacity>
+
+             <TouchableOpacity style={styles.planCard} onPress={() => navigation.navigate('Subscription')}>
+                <Text style={styles.planFeature}>🚀 PRO+  10/day  $10/mo  →</Text>
+             </TouchableOpacity>
+
+             <Text style={styles.paywallResetTime}>Resets tomorrow</Text>
+             <TouchableOpacity style={styles.evalTryAgain} onPress={() => navigation.goBack()}>
+                <Text style={styles.evalTryAgainText}>Come back tomorrow</Text>
+             </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {phase === 'START' && !showPaywall && (
+        <View style={styles.lobbyContainer}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* HEADER */}
+            <View style={styles.header}>
+              <View style={styles.botAvatarLarge}>
+                <Animated.View style={[styles.pulseRing1, { transform: [{ scale: pulseAnim }], opacity: pulseAnim.interpolate({inputRange: [1, 1.05], outputRange: [1, 0]}) }]} />
+                <Animated.View style={[styles.pulseRing2, { transform: [{ scale: pulseAnim }], opacity: pulseAnim.interpolate({inputRange: [1, 1.05], outputRange: [1, 0]}) }]} />
+                <Bot size={40} color="#fff" />
               </View>
-            </Animated.View>
+              <Text style={styles.title}>Ready for your AI Interview?</Text>
+              <Text style={styles.subtitle}>
+                Our HR Bot will ask you real questions and evaluate answers
+              </Text>
 
-            <Text style={styles.lobbyTitle}>Ready for your AI Interview?</Text>
-            <Text style={styles.lobbySubtitle}>
-              Our HR Bot will ask you real interview questions and evaluate your answers with AI
-            </Text>
-          </View>
+              {/* Quota badge */}
+              {quota && (
+                <View style={styles.quotaBadge}>
+                  <Text style={styles.quotaText}>🎯 {quota.remaining}/{quota.limit} interviews today</Text>
+                </View>
+              )}
+            </View>
 
-          {/* Settings Card */}
-          <View style={styles.settingsCard}>
-            <View style={styles.settingRow}>
-              <Text style={styles.settingIcon}>🎯</Text>
-              <Text style={styles.settingLabel}>Topic:</Text>
-              <Text style={styles.settingValue}>React Native ▾</Text>
-            </View>
-            <View style={styles.settingRow}>
-              <Text style={styles.settingIcon}>📊</Text>
-              <Text style={styles.settingLabel}>Difficulty:</Text>
-              <Text style={styles.settingValue}>Medium ▾</Text>
-            </View>
-            <View style={styles.settingRow}>
-              <Text style={styles.settingIcon}>⏱</Text>
-              <Text style={styles.settingLabel}>Questions:</Text>
-              <Text style={styles.settingValue}>5 ▾</Text>
-            </View>
-          </View>
-
-          {/* Bottom Call To Action */}
-          <View style={styles.lobbyFooter}>
-            <Animated.View style={{ transform: [{ scale: btnScaleAnim }] }}>
-              <TouchableOpacity 
-                activeOpacity={1} 
-                onPressIn={handleStartPressIn} 
-                onPressOut={handleStartPressOut}
-                onPress={handleStart}
+            {/* STEP 1 — MODE SELECTION */}
+            <Text style={styles.sectionLabel}>Choose Interview Type</Text>
+            {[
+              {
+                id: 'hr', icon: '👔', title: 'HR Interview', subtitle: 'Soft skills, motivation, teamwork', color: '#2d5986', gradient: ['#1e3a5f', '#2d5986'],
+              },
+              {
+                id: 'tech', icon: '💻', title: 'Technical', subtitle: 'Code, architecture, best practices', color: '#4338ca', gradient: ['#1a1e3a', '#4338ca'],
+              },
+              {
+                id: 'combined', icon: '🎯', title: 'Full Interview', subtitle: 'HR + Technical combined', color: '#065f46', gradient: ['#1a3a2d', '#065f46'],
+              },
+            ].map(mode => (
+              <TouchableOpacity
+                key={mode.id}
+                onPress={() => setSelectedMode(mode.id as any)}
+                style={[
+                  styles.modeCard,
+                  selectedMode === mode.id && { borderColor: mode.color, borderWidth: 2 }
+                ]}
               >
                 <LinearGradient
-                  colors={['#6C63FF', '#818CF8']}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                  style={styles.lobbyStartBtn}
+                  colors={selectedMode === mode.id ? mode.gradient : ['#161827', '#1e2035']}
+                  style={styles.modeCardInner}
                 >
-                  <Play size={20} color="#FFF" fill="#FFF" />
-                  <Text style={styles.lobbyStartBtnText}>Start Interview</Text>
+                  <Text style={styles.modeIcon}>{mode.icon}</Text>
+                  <View style={styles.modeInfo}>
+                    <Text style={styles.modeTitle}>{mode.title}</Text>
+                    <Text style={styles.modeSubtitle}>{mode.subtitle}</Text>
+                  </View>
+                  {selectedMode === mode.id && (
+                    <View style={styles.checkmark}>
+                      <Text style={{color: '#fff', fontWeight: 'bold'}}>✓</Text>
+                    </View>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
-            </Animated.View>
-            <Text style={styles.lobbyTip}>💡 Tip: Answer as you would in a real interview</Text>
+            ))}
+
+            {/* STEP 2 — LANGUAGE */}
+            {(selectedMode === 'tech' || selectedMode === 'combined') && (
+              <Reanimated.View entering={FadeInDown.duration(300)} style={styles.section}>
+                <Text style={styles.sectionLabel}>Programming Language</Text>
+                <View style={styles.languageGrid}>
+                  {[
+                    { id: 'python', icon: '🐍', label: 'Python' },
+                    { id: 'javascript', icon: '🟨', label: 'JavaScript' },
+                    { id: 'java', icon: '☕', label: 'Java' },
+                    { id: 'go', icon: '🔵', label: 'Go' },
+                    { id: 'csharp', icon: '🟣', label: 'C#' },
+                    { id: 'typescript', icon: '🔷', label: 'TypeScript' },
+                  ].map(lang => (
+                    <TouchableOpacity
+                      key={lang.id}
+                      onPress={() => setSelectedLang(lang.id)}
+                      style={[styles.langChip, selectedLang === lang.id && styles.langChipActive]}
+                    >
+                      <Text>{lang.icon}</Text>
+                      <Text style={[styles.langLabel, selectedLang === lang.id && styles.langLabelActive]}>{lang.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </Reanimated.View>
+            )}
+
+            {/* STEP 3 — KILKIST PYTAN */}
+            <Text style={styles.sectionLabel}>Number of Questions</Text>
+            <View style={styles.countRow}>
+              {[
+                { count: 10, time: '~15 min' },
+                { count: 15, time: '~25 min' },
+                { count: 20, time: '~35 min' },
+              ].map(opt => (
+                <TouchableOpacity
+                  key={opt.count}
+                  onPress={() => setQuestionCount(opt.count)}
+                  style={[styles.countCard, questionCount === opt.count && styles.countCardActive]}
+                >
+                  <Text style={styles.countNumber}>{opt.count}</Text>
+                  <Text style={styles.countTime}>{opt.time}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* SUMMARY */}
+            {selectedMode && (
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryText}>
+                  {selectedMode === 'hr' && '👔 HR Interview'}
+                  {selectedMode === 'tech' && `💻 ${selectedLang || '...'} Technical`}
+                  {selectedMode === 'combined' && `🎯 Full: HR + ${selectedLang || '...'}`}
+                  {'  •  '}{questionCount || '?'} questions  {'  •  '}
+                  {questionCount === 10 ? '~15 min' : questionCount === 15 ? '~25 min' : questionCount === 20 ? '~35 min' : '? mins'}
+                </Text>
+              </View>
+            )}
+
+            {/* Spacing for bottom bar */}
+            <View style={{height: 120}} />
+          </ScrollView>
+
+          {/* START BUTTON */}
+          <View style={styles.bottomBar}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.startBtn, (!canStart) && styles.startBtnDisabled]}
+              onPress={handleStart}
+              disabled={!canStart || isLoading}
+            >
+              <LinearGradient colors={['#4338ca', '#6C63FF']} style={styles.startBtnGradient}>
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Play size={20} color="#fff" />
+                    <Text style={styles.startBtnText}>Start Interview</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -351,98 +521,250 @@ const styles = StyleSheet.create({
     padding: 24,
     justifyContent: 'center',
   },
-  lobbyHero: {
+  header: {
     alignItems: 'center',
-    marginBottom: 40,
-    marginTop: 40,
+    paddingTop: 40,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
   },
-  heroOrb: {
+  botAvatarLarge: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#6C63FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  pulseRing1: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    borderColor: 'rgba(108,99,255,0.4)',
+  },
+  pulseRing2: {
+    position: 'absolute',
     width: 140,
     height: 140,
     borderRadius: 70,
+    borderWidth: 1,
+    borderColor: 'rgba(108,99,255,0.2)',
+  },
+  quotaBadge: {
     backgroundColor: 'rgba(108,99,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 30,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
     borderWidth: 1,
     borderColor: 'rgba(108,99,255,0.3)',
-    shadowColor: '#6C63FF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 30,
-    elevation: 10,
+    marginTop: 12,
   },
-  heroAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#6C63FF',
-    justifyContent: 'center',
-    alignItems: 'center',
+  quotaText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
-  lobbyTitle: {
+  title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#FFF',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  lobbySubtitle: {
+  subtitle: {
     fontSize: 16,
     color: '#A0A0B0',
     textAlign: 'center',
-    lineHeight: 24,
     paddingHorizontal: 10,
   },
-  settingsCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 40,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  settingIcon: {
-    fontSize: 18,
-    marginRight: 12,
-  },
-  settingLabel: {
-    flex: 1,
-    color: '#E0E0E0',
-    fontSize: 16,
-  },
-  settingValue: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  lobbyFooter: {
-    marginTop: 'auto',
-    marginBottom: 20,
-  },
-  lobbyStartBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 56,
-    borderRadius: 28,
-    gap: 12,
-  },
-  lobbyStartBtnText: {
+  sectionLabel: {
     color: '#FFF',
     fontSize: 18,
     fontWeight: 'bold',
+    marginLeft: 20,
+    marginTop: 20,
+    marginBottom: 12,
   },
-  lobbyTip: {
-    color: '#888',
-    textAlign: 'center',
-    marginTop: 16,
+  modeCard: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    overflow: 'hidden',
+  },
+  modeCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    gap: 16,
+  },
+  modeIcon: {
+    fontSize: 32,
+  },
+  modeInfo: {
+    flex: 1,
+  },
+  modeTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  modeSubtitle: {
+    color: '#94a3b8',
     fontSize: 13,
+  },
+  checkmark: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#10b981',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  section: {},
+  languageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingHorizontal: 20,
+  },
+  langChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#161827',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  langChipActive: {
+    backgroundColor: 'rgba(108,99,255,0.2)',
+    borderColor: '#6C63FF',
+  },
+  langLabel: {
+    color: '#a1a1aa',
+    fontWeight: '500',
+  },
+  langLabelActive: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  countRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+  },
+  countCard: {
+    flex: 1,
+    backgroundColor: '#161827',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  countCardActive: {
+    backgroundColor: 'rgba(108,99,255,0.2)',
+    borderColor: '#6C63FF',
+  },
+  countNumber: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  countTime: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 4,
+  },
+  summaryCard: {
+    margin: 20,
+    backgroundColor: 'rgba(108,99,255,0.1)',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(108,99,255,0.2)',
+    alignItems: 'center',
+  },
+  summaryText: {
+    color: '#fff',
+    fontWeight: '500',
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    paddingBottom: 36,
+    backgroundColor: '#0d0f1a',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+  },
+  startBtn: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  startBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 18,
+  },
+  startBtnDisabled: {
+    opacity: 0.5,
+  },
+  startBtnText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  paywallBox: {
+    backgroundColor: '#161827',
+    borderRadius: 24,
+    padding: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(108,99,255,0.3)',
+  },
+  paywallTitle: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  paywallSubtitle: {
+    color: '#e2e8f0',
+    textAlign: 'center',
+    marginBottom: 30,
+    fontSize: 16,
+  },
+  planCard: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  planFeature: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  paywallResetTime: {
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginTop: 20,
+    marginBottom: 10,
   },
 
   // -- Phase 2: Active Interview --

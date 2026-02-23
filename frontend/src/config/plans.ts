@@ -1,0 +1,52 @@
+export const PLANS = {
+  FREE: {
+    name: 'Free',
+    price_month: 0,
+    price_year: 0,
+    icon: '⭐',
+    color: '#94a3b8',
+    interviews_per_day: 1,
+    features: [
+      '1 AI interview per day',
+      'Basic learning topics',
+      'Progress tracking',
+    ],
+    limitations: [
+      'No voice input',
+      'Limited question history',
+    ],
+  },
+  PRO: {
+    name: 'PRO',
+    price_month: 5,
+    price_year: 48,
+    icon: '💎',
+    color: '#6C63FF',
+    interviews_per_day: 5,
+    features: [
+      '5 AI interviews per day',
+      'All learning topics',
+      'Voice input',
+      'Full question history',
+      'Priority support',
+    ],
+    limitations: [],
+  },
+  PRO_PLUS: {
+    name: 'PRO+',
+    price_month: 10,
+    price_year: 96,
+    icon: '🚀',
+    color: '#f59e0b',
+    interviews_per_day: 10,
+    features: [
+      '10 AI interviews per day',
+      'All PRO features',
+      'Advanced analytics',
+      'Custom interview scenarios',
+      'Export interview history',
+      'Early access to new features',
+    ],
+    limitations: [],
+  },
+};

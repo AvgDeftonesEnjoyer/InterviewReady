@@ -1,18 +1,18 @@
 from datetime import date
 from .models import InterviewSession
 
+# Daily interview limits per plan (from spec)
 DAILY_LIMITS = {
-    'FREE': 2,
-    'PRO': 10,
+    'FREE': 1,      # 1 interview per day
+    'PRO': 5,       # $5/mo - 5 interviews per day
+    'PRO_PLUS': 10, # $10/mo - 10 interviews per day
 }
 
 
 def get_user_plan(user) -> str:
-    """Returns the user's current plan: 'FREE' or 'PRO'."""
-    active_sub = user.subscriptions.filter(status='ACTIVE').order_by('-started_at').first()
-    if active_sub and active_sub.plan == 'PRO':
-        return 'PRO'
-    return 'FREE'
+    """Returns user's plan: 'FREE', 'PRO', or 'PRO_PLUS'."""
+    from subscriptions.services import SubscriptionService
+    return SubscriptionService.get_plan(user)
 
 
 def get_quota(user) -> dict:
