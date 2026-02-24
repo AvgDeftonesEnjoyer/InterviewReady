@@ -6,6 +6,7 @@ import { StatCard } from '../components/ui/StatCard';
 import { StreakBadge } from '../components/ui/StreakBadge';
 import { AnimatedProgressBar } from '../components/ui/AnimatedProgressBar';
 import { QuickActionBtn } from '../components/ui/QuickActionBtn';
+import { SkeletonDashboard } from '../components/ui/SkeletonBox';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Play, Target, Zap, Clock, Trophy, BookOpen, Brain, BarChart2, RefreshCw } from 'lucide-react-native';
 import { useAuthStore } from '../store/useAuthStore';
@@ -115,11 +116,7 @@ export const HomeScreen = ({ navigation }: any) => {
   };
 
   if (loading && !data) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={theme.colors.primary.DEFAULT} />
-      </View>
-    );
+    return <SkeletonDashboard />;
   }
 
   if (error && !data) {

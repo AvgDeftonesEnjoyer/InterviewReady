@@ -61,6 +61,7 @@ class LoginView(APIView):
 class GoogleLoginView(APIView):
     permission_classes = [AllowAny]
 
+    @method_decorator(ratelimit(key='ip', rate='10/h', block=True))
     def post(self, request, *args, **kwargs):
         serializer = SocialLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -74,6 +75,7 @@ class GoogleLoginView(APIView):
 class AppleLoginView(APIView):
     permission_classes = [AllowAny]
 
+    @method_decorator(ratelimit(key='ip', rate='10/h', block=True))
     def post(self, request, *args, **kwargs):
         serializer = SocialLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -87,6 +89,11 @@ class AppleLoginView(APIView):
 # Alias for simplejwt refresh
 class CustomTokenRefreshView(TokenRefreshView):
     permission_classes = [AllowAny]
+    
+    # SECURITY: Rate limiting on token refresh to prevent brute force
+    @method_decorator(ratelimit(key='ip', rate='30/h', block=True))
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
 class OnboardingView(APIView):
     permission_classes = [IsAuthenticated]

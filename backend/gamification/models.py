@@ -3,7 +3,7 @@ from django.conf import settings
 
 class UserProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
-    
+
     PRIMARY_LANGUAGE_CHOICES = [
         ('python', 'Python'),
         ('javascript', 'JavaScript'),
@@ -12,7 +12,7 @@ class UserProfile(models.Model):
         ('csharp', 'C#'),
     ]
     primary_language = models.CharField(max_length=50, choices=PRIMARY_LANGUAGE_CHOICES, blank=True, null=True)
-    
+
     SPECIALIZATION_CHOICES = [
         ('backend', 'Backend'),
         ('frontend', 'Frontend'),
@@ -21,22 +21,29 @@ class UserProfile(models.Model):
         ('ml', 'ML/AI'),
     ]
     specialization = models.CharField(max_length=50, choices=SPECIALIZATION_CHOICES, blank=True, null=True)
-    
+
     EXPERIENCE_LEVEL_CHOICES = [
         ('junior', 'Junior'),
         ('middle', 'Middle'),
         ('senior', 'Senior'),
     ]
     experience_level = models.CharField(max_length=50, choices=EXPERIENCE_LEVEL_CHOICES, blank=True, null=True)
-    
+
     onboarding_completed = models.BooleanField(default=False)
-    
+
     ui_language = models.CharField(
         max_length=5,
         choices=[('en', 'English'), ('uk', 'Українська')],
         default='en'
     )
-    
+
+    # TIMEZONE: Add user timezone for proper daily reset calculations
+    timezone = models.CharField(
+        max_length=50,
+        default='UTC',
+        help_text="User's timezone for daily reset calculations"
+    )
+
     # Existing fields
     target_role = models.CharField(max_length=100, blank=True, null=True)
     readiness_score = models.IntegerField(default=0)
@@ -51,6 +58,13 @@ class Streak(models.Model):
     current_streak = models.IntegerField(default=0)
     longest_streak = models.IntegerField(default=0)
     last_activity_date = models.DateField(null=True)
+
+    class Meta:
+        # OPTIMIZATION: Add indexes for frequently filtered fields
+        indexes = [
+            models.Index(fields=['last_activity_date']),
+            models.Index(fields=['user', 'last_activity_date']),
+        ]
 
 class ChallengeTemplate(models.Model):
     title = models.CharField(max_length=200)
@@ -91,8 +105,8 @@ class ChallengeTemplate(models.Model):
 
 class DailyChallenge(models.Model):
     template = models.ForeignKey(
-        ChallengeTemplate, 
-        on_delete=models.SET_NULL, 
+        ChallengeTemplate,
+        on_delete=models.SET_NULL,
         null=True
     )
     date = models.DateField()
@@ -101,14 +115,20 @@ class DailyChallenge(models.Model):
     class Meta:
         unique_together = ('date', 'order')
         ordering = ['date', 'order']
-        
+        # OPTIMIZATION: Add indexes for frequently filtered fields
+        indexes = [
+            models.Index(fields=['date', 'order']),
+            models.Index(fields=['date']),
+        ]
+
     def __str__(self):
         return f"{self.date} - {self.template.title if self.template else 'Deleted Template'}"
+
 
 class UserDailyChallenge(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='daily_challenges')
     challenge = models.ForeignKey(DailyChallenge, on_delete=models.CASCADE)
-    
+
     completed_count = models.IntegerField(default=0)
     is_completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -116,3 +136,12 @@ class UserDailyChallenge(models.Model):
 
     class Meta:
         unique_together = ('user', 'challenge')
+        # OPTIMIZATION: Add indexes for frequently filtered fields
+        indexes = [
+            models.Index(fields=['user', 'is_completed']),
+            models.Index(fields=['challenge', 'user']),
+            models.Index(fields=['user', 'completed_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - Challenge {self.challenge.id}"

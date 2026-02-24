@@ -8,12 +8,17 @@ class Topic(models.Model):
     icon = models.CharField(max_length=10, default='📚')
     order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
-    
+
     name_en = models.CharField(max_length=100, blank=True)
     name_uk = models.CharField(max_length=100, blank=True)
 
     class Meta:
         ordering = ['order']
+        # OPTIMIZATION: Add indexes for frequently filtered fields
+        indexes = [
+            models.Index(fields=['language', 'is_active']),
+            models.Index(fields=['is_active', 'order']),
+        ]
 
     def get_name(self, lang='en'):
         if lang == 'uk' and self.name_uk:
@@ -51,15 +56,24 @@ class Question(models.Model):
     topic = models.ForeignKey(Topic, on_delete=models.SET_NULL, null=True, related_name='questions')
     xp_reward = models.IntegerField(default=10)
     question_type = models.CharField(max_length=20, choices=QUESTION_TYPE_CHOICES, default='multiple_choice')
-    
+
     explanation = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     text_en = models.TextField(default='', blank=True)
     text_uk = models.TextField(blank=True)
     explanation_en = models.TextField(blank=True)
     explanation_uk = models.TextField(blank=True)
+
+    class Meta:
+        # OPTIMIZATION: Add indexes for frequently filtered fields
+        indexes = [
+            models.Index(fields=['is_active', 'language']),
+            models.Index(fields=['is_active', 'difficulty']),
+            models.Index(fields=['topic', 'is_active']),
+            models.Index(fields=['language', 'specialization']),
+        ]
 
     def get_text(self, lang='en'):
         if lang == 'uk' and self.text_uk:
@@ -102,8 +116,17 @@ class UserAnswer(models.Model):
     is_correct = models.BooleanField()
     answered_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        # OPTIMIZATION: Add indexes for frequently filtered fields
+        indexes = [
+            models.Index(fields=['user', 'answered_at']),
+            models.Index(fields=['user', 'is_correct']),
+            models.Index(fields=['question', 'is_correct']),
+        ]
+
     def __str__(self):
         return f"{self.user.username} - {self.question.id} (Correct: {self.is_correct})"
+
 
 class UserProgress(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='progress')
@@ -112,6 +135,16 @@ class UserProgress(models.Model):
     answered_at = models.DateTimeField(auto_now_add=True)
     is_correct = models.BooleanField()
     xp_earned = models.IntegerField(default=0)
+
+    class Meta:
+        # OPTIMIZATION: Add indexes for frequently filtered fields
+        indexes = [
+            models.Index(fields=['user', 'answered_at']),
+            models.Index(fields=['user', 'is_correct']),
+            models.Index(fields=['user', 'session_id']),
+            models.Index(fields=['user', 'xp_earned']),
+            models.Index(fields=['question', 'user']),
+        ]
 
     def __str__(self):
         return f"{self.user.username} Progress on Q{self.question.id} (XP: {self.xp_earned})"

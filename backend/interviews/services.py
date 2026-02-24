@@ -1,4 +1,6 @@
-from datetime import date
+from datetime import date, timedelta
+from django.utils import timezone
+import pytz
 from .models import InterviewSession
 
 # Daily interview limits per plan (from spec)
@@ -15,18 +17,52 @@ def get_user_plan(user) -> str:
     return SubscriptionService.get_plan(user)
 
 
+def get_user_timezone(user) -> pytz.timezone:
+    """
+    Get user's timezone from profile, default to UTC.
+    TIMEZONE: Uses user's timezone for accurate daily quota calculation.
+    """
+    try:
+        tz_name = user.profile.timezone if hasattr(user, 'profile') and user.profile else 'UTC'
+        return pytz.timezone(tz_name)
+    except (pytz.exceptions.UnknownTimeZoneError, AttributeError):
+        return pytz.UTC
+
+
+def get_today_in_user_timezone(user) -> date:
+    """
+    Get today's date in the user's timezone.
+    This ensures quota resets at midnight in user's local time.
+    """
+    user_tz = get_user_timezone(user)
+    now = timezone.now().astimezone(user_tz)
+    return now.date()
+
+
 def get_quota(user) -> dict:
+    """
+    Calculate user's interview quota.
+    TIMEZONE: Uses user's local timezone for accurate daily limits.
+    """
     plan = get_user_plan(user)
     limit = DAILY_LIMITS.get(plan, 1)
+    
+    # Get today's date in user's timezone
+    today = get_today_in_user_timezone(user)
+    
+    # Count interviews started today in user's timezone
     used = InterviewSession.objects.filter(
         user=user,
-        started_at__date=date.today()
+        started_at__date=today
     ).count()
+    
     remaining = max(0, limit - used)
+    
     return {
         'plan': plan,
         'limit': limit,
         'used': used,
         'remaining': remaining,
         'can_start': remaining > 0,
+        'timezone': str(get_user_timezone(user)),
     }

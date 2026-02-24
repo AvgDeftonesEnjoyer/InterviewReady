@@ -11,9 +11,24 @@ env = environ.Env(
 )
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
-SECRET_KEY = env('SECRET_KEY', default='unsafe-secret-key')
+# SECURITY: Validate required environment variables
+required_env_vars = ['SECRET_KEY', 'OPENAI_API_KEY']
+for var in required_env_vars:
+    if not os.environ.get(var):
+        raise ValueError(f"Required environment variable '{var}' is not set!")
+
+# SECURITY: SECRET_KEY must be set in environment - no default allowed
+SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
+
+# SECURITY: Explicit allowed hosts - no wildcards in production
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+
+# SECURITY: CSRF trusted origins for API
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
+    'http://localhost:8081',
+    'http://127.0.0.1:8081',
+])
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -122,11 +137,17 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    # SECURITY: Reduced token lifetimes for better security
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Reduced from 60
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=3),     # Reduced from 7
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
+    # Additional security
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
 }
 
 CELERY_BROKER_URL = env('REDIS_URL', default='redis://localhost:6379/1')
@@ -151,11 +172,21 @@ CELERY_BEAT_SCHEDULE = {
 STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='')
 STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')
 APPLE_SHARED_SECRET = env('APPLE_SHARED_SECRET', default='')
+APPLE_CLIENT_ID = env('APPLE_CLIENT_ID', default='')
 APPLE_BUNDLE_ID = env('APPLE_BUNDLE_ID', default='')
 OPENAI_API_KEY = env('OPENAI_API_KEY', default='')
+GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID', default='')
 
-CORS_ALLOW_ALL_ORIGINS = True  # Allows Expo client to connect locally
+# SECURITY: CORS - restrict to specific origins only
+CORS_ALLOW_ALL_ORIGINS = False  # Must be False in production
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8081",
     "http://127.0.0.1:8081",
 ]
+# Optional: Enable credentials if needed
+CORS_ALLOW_CREDENTIALS = True
+
+# Security headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'

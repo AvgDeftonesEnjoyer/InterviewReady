@@ -29,6 +29,13 @@ class InterviewSession(models.Model):
 
     class Meta:
         ordering = ['-started_at']
+        # OPTIMIZATION: Add indexes for frequently filtered fields
+        indexes = [
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['user', 'started_at']),
+            models.Index(fields=['status', 'started_at']),
+            models.Index(fields=['user', 'mode']),
+        ]
 
     def __str__(self):
         return f"{self.user.username} - {self.mode} ({self.status})"

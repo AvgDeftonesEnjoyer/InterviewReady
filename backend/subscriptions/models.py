@@ -32,6 +32,15 @@ class Subscription(models.Model):
     expires_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        # OPTIMIZATION: Add indexes for frequently filtered fields
+        indexes = [
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['user', 'plan']),
+            models.Index(fields=['status', 'expires_at']),
+            models.Index(fields=['provider', 'provider_subscription_id']),
+        ]
+
     def __str__(self):
         return f"{self.user.username} - {self.plan} ({self.status})"
 
