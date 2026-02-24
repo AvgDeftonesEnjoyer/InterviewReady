@@ -18,7 +18,8 @@ export interface Question {
     is_answered?: boolean;
 }
 
-// Old Daily Hooks
+// DEPRECATED: Old Daily Questions API - not used anymore
+// Use useTopics() instead
 export const useDailyQuestions = () => {
     return useQuery<Question[]>({
         queryKey: ['daily-questions'],
@@ -26,9 +27,11 @@ export const useDailyQuestions = () => {
             const { data } = await apiClient.get('/api/learning/daily/');
             return data;
         },
+        enabled: false, // Disabled by default - use useTopics instead
     });
 };
 
+// DEPRECATED: Old Submit Answer API - replaced by useSubmitLearningAnswer
 export const useSubmitAnswer = () => {
     return useMutation({
         mutationFn: async ({ questionId, optionId }: { questionId: number; optionId: number }) => {
@@ -37,7 +40,8 @@ export const useSubmitAnswer = () => {
                 option_id: optionId
             });
             return data as { is_correct: boolean; explanation: string; xp_earned: number };
-        }
+        },
+        enabled: false, // Disabled - use useSubmitLearningAnswer instead
     });
 };
 

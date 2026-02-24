@@ -36,27 +36,11 @@ class DailyQuestionsView(APIView):
 
 class QuestionListView(generics.ListAPIView):
     # OPTIMIZATION: Use select_related to avoid N+1 queries
+    # DEPRECATED: Not used by frontend, kept for backward compatibility
     queryset = Question.objects.select_related('topic').filter(is_active=True)
     serializer_class = QuestionSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['difficulty', 'specialization', 'language', 'topic']
-
-
-class SubmitAnswerView(APIView):
-    def post(self, request, *args, **kwargs):
-        serializer = SubmitAnswerSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        try:
-            result = LearningService.submit_answer(
-                user=request.user,
-                question_id=serializer.validated_data['question_id'],
-                option_id=serializer.validated_data['option_id']
-            )
-            return Response(result, status=status.HTTP_200_OK)
-        except Exception as e:
-            logger.error(f"SubmitAnswerView error: {str(e)}")
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TopicListView(generics.ListAPIView):

@@ -177,6 +177,20 @@ APPLE_BUNDLE_ID = env('APPLE_BUNDLE_ID', default='')
 OPENAI_API_KEY = env('OPENAI_API_KEY', default='')
 GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID', default='')
 
+# AI Models - конфігуровані моделі для різних задач
+OPENAI_INTERVIEW_MODEL = env(
+    'OPENAI_INTERVIEW_MODEL',
+    default='gpt-4o-mini'
+)
+OPENAI_EVALUATION_MODEL = env(
+    'OPENAI_EVALUATION_MODEL',
+    default='gpt-4o-mini'
+)
+OPENAI_TRANSCRIPTION_MODEL = env(
+    'OPENAI_TRANSCRIPTION_MODEL',
+    default='whisper-1'
+)
+
 # SECURITY: CORS - restrict to specific origins only
 CORS_ALLOW_ALL_ORIGINS = False  # Must be False in production
 CORS_ALLOWED_ORIGINS = [

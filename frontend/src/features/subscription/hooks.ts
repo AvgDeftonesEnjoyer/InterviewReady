@@ -2,16 +2,22 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
 
 export interface SubscriptionStatus {
-    is_pro: boolean;
-    plan: 'FREE' | 'PRO';
+    plan: 'FREE' | 'PRO' | 'PRO_PLUS';
+    is_active: boolean;
+    started_at: string | null;
     expires_at: string | null;
+    billing_cycle: 'monthly' | 'annual';
+    price: number;
+    interviews_remaining: number;
+    interviews_limit: number;
 }
 
 export const useSubscription = () => {
     return useQuery<SubscriptionStatus>({
         queryKey: ['subscription-status'],
         queryFn: async () => {
-            const { data } = await apiClient.get('/subscriptions/');
+            // ✅ CORRECT: Use /subscriptions/status/ endpoint
+            const { data } = await apiClient.get('/subscriptions/status/');
             return data;
         },
     });
