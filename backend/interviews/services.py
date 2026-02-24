@@ -17,7 +17,7 @@ def get_user_plan(user) -> str:
 
 def get_quota(user) -> dict:
     plan = get_user_plan(user)
-    limit = DAILY_LIMITS[plan]
+    limit = DAILY_LIMITS.get(plan, 1)
     used = InterviewSession.objects.filter(
         user=user,
         started_at__date=date.today()

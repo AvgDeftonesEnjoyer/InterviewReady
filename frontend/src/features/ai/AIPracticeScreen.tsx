@@ -1,21 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, 
-  Alert, Animated, Platform, ScrollView, Easing, KeyboardAvoidingView 
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
+  Alert, Animated, Platform, ScrollView, Easing, KeyboardAvoidingView
 } from 'react-native';
-import { useEvaluateAI } from './hooks';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bot, Play, ArrowRight, RefreshCw, XCircle } from 'lucide-react-native';
+import { Bot, Play, ArrowRight, RefreshCw, XCircle, Briefcase, Code2, Target } from 'lucide-react-native';
 import Reanimated, { FadeInDown } from 'react-native-reanimated';
 import { apiClient } from '../../api/client';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 type Phase = 'START' | 'ACTIVE' | 'EVALUATION';
 
 export const AIPracticeScreen = () => {
   const navigation = useNavigation<any>();
+  const tabBarHeight = useBottomTabBarHeight();
+  const styles = createStyles(tabBarHeight);
   const [phase, setPhase] = useState<Phase>('START');
-  
+
   // New Setup States
   const [selectedMode, setSelectedMode] = useState<'hr' | 'tech' | 'combined' | null>(null);
   const [selectedLang, setSelectedLang] = useState<string | null>(null);
@@ -24,17 +26,16 @@ export const AIPracticeScreen = () => {
   const [quota, setQuota] = useState<{ remaining: number, limit: number, can_start: boolean } | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [sessionId, setSessionId] = useState<number | null>(null);
+  const [currentQuestionNum, setCurrentQuestionNum] = useState(1);
 
   const [question, setQuestion] = useState('Tell me about your experience with building scalable React Native applications. What challenges did you face?');
   const [answer, setAnswer] = useState('');
-  const [feedback, setFeedback] = useState<{ evaluation: string; followup: string; score?: number } | null>(null);
+  const [feedback, setFeedback] = useState<{ evaluation: string; followup: string } | null>(null);
 
   const [timer, setTimer] = useState(0);
   const [isTyping, setIsTyping] = useState(true);
   const [displayedQuestion, setDisplayedQuestion] = useState('');
   const [isFocused, setIsFocused] = useState(false);
-
-  const evaluateAI = useEvaluateAI();
 
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -93,20 +94,26 @@ export const AIPracticeScreen = () => {
   }, [phase, modalSlideAnim]);
 
   // Fetch Quota
-  useEffect(() => {
-    const fetchQuota = async () => {
-      try {
-        const { data } = await apiClient.get('/interviews/quota/');
-        setQuota(data);
-        if (!data.can_start) {
-          setShowPaywall(true);
-        }
-      } catch (err) {
-        console.error('Failed to get quota', err);
+  const fetchQuota = useCallback(async () => {
+    try {
+      const { data } = await apiClient.get('/interviews/quota/');
+      setQuota(data);
+      if (!data.can_start) {
+        setShowPaywall(true);
       }
-    };
+    } catch (err) {
+      console.error('Failed to get quota', err);
+    }
+  }, []);
+
+  useEffect(() => {
     fetchQuota();
-  }, [phase]);
+  }, [fetchQuota]);
+
+  // Refresh quota when screen is focused
+  useFocusEffect(useCallback(() => {
+    fetchQuota();
+  }, [fetchQuota]));
 
   const canStart =
     selectedMode !== null &&
@@ -146,31 +153,73 @@ export const AIPracticeScreen = () => {
     }
   };
 
-  const handleSubmit = () => {
-    if (!answer.trim()) return;
-    
-    evaluateAI.mutate(
-      { question, answer },
-      {
-        onSuccess: (data) => {
-          const mockedScore = Math.floor(Math.random() * 20) + 75; // 75-95 mock
-          setFeedback({ ...data, score: mockedScore });
-          setPhase('EVALUATION');
-        },
-        onError: (err: any) => {
-          if (err.response?.status === 403) {
-            Alert.alert('Limit Reached', 'You have reached your daily AI practice limit. Upgrade to PRO for unlimited usage!');
-          } else {
-            Alert.alert('Error', 'Failed to evaluate answer.');
-          }
-        }
+  const handleSubmit = async () => {
+    if (!answer.trim() || !sessionId) return;
+    setIsLoading(true);
+
+    try {
+      const response = await apiClient.post(
+        `/interviews/${sessionId}/message/`,
+        { content: answer }
+      );
+
+      const { message, is_complete, question_count } = response.data;
+
+      if (is_complete) {
+        // Show final evaluation screen
+        setFeedback({
+          evaluation: message,
+          followup: '',
+        });
+        setPhase('EVALUATION');
+      } else {
+        // Next question
+        setQuestion(message);
+        setCurrentQuestionNum(question_count);
+        setAnswer('');
+        setPhase('ACTIVE');
       }
-    );
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        Alert.alert('Limit Reached', 'Upgrade to PRO!');
+      } else {
+        Alert.alert('Error', 'Failed to send answer.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleNextQuestion = () => {
-    setQuestion('How do you manage complex global state in a React application? Provide examples.');
+  const handleRestart = () => {
     setPhase('START');
+    setCurrentQuestionNum(1);
+    setSessionId(null);
+    setAnswer('');
+    fetchQuota();
+  };
+
+  const handleSkip = async () => {
+    if (!sessionId || isLoading) return;
+    setIsLoading(true);
+    try {
+      const response = await apiClient.post(
+        `/interviews/${sessionId}/message/`,
+        { content: '[SKIP] - Moving to next question' }
+      );
+      const { message, is_complete, question_count } = response.data;
+      if (is_complete) {
+        setFeedback({ evaluation: message, followup: '' });
+        setPhase('EVALUATION');
+      } else {
+        setQuestion(message);
+        setCurrentQuestionNum(question_count);
+        setAnswer('');
+      }
+    } catch (e: any) {
+      Alert.alert('Error', 'Could not skip question.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const formatTimer = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
@@ -180,9 +229,13 @@ export const AIPracticeScreen = () => {
       {/* TOP SECTION: Question Display */}
       <View style={styles.topSection}>
         <View style={styles.activeHeader}>
-          <Text style={styles.questionCounter}>Question 2 of 5</Text>
+          <Text style={styles.questionCounter}>
+            Question {currentQuestionNum} of {questionCount || 1}
+          </Text>
           <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: '40%' }]} />
+            <View style={[styles.progressBarFill, {
+              width: `${(currentQuestionNum / (questionCount || 1)) * 100}%`
+            }]} />
           </View>
         </View>
 
@@ -242,21 +295,21 @@ export const AIPracticeScreen = () => {
 
       {/* BOTTOM SECTION: Actions */}
       <View style={styles.bottomSection}>
-        <TouchableOpacity style={styles.skipBtn} onPress={handleNextQuestion}>
+        <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
           <Text style={styles.skipBtnText}>Skip Question</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.submitBtn, !answer.trim() && { opacity: 0.5 }]} 
+
+        <TouchableOpacity
+          style={[styles.submitBtn, !answer.trim() && { opacity: 0.5 }]}
           onPress={handleSubmit}
-          disabled={!answer.trim() || evaluateAI.isPending}
+          disabled={!answer.trim() || isLoading}
         >
           <LinearGradient
             colors={['#6C63FF', '#818CF8']}
             style={styles.submitGradient}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
           >
-            {evaluateAI.isPending ? <ActivityIndicator color="#FFF" /> : (
+            {isLoading ? <ActivityIndicator color="#FFF" /> : (
               <>
                 <Text style={styles.submitBtnText}>Submit Answer</Text>
                 <ArrowRight size={18} color="#FFF" />
@@ -274,31 +327,15 @@ export const AIPracticeScreen = () => {
       <Animated.View style={[styles.evalModal, { transform: [{ translateY: modalSlideAnim }] }]}>
         <LinearGradient colors={['#1e2035', '#161827']} style={styles.evalGradientBg}>
           <View style={styles.evalDragHandle} />
-          
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            {/* Animated Score Ring */}
-            <View style={styles.scoreContainer}>
-               <View style={styles.scoreRing}>
-                  <Text style={styles.scoreValue}>{feedback.score}</Text>
-                  <Text style={styles.scoreMax}>/ 100</Text>
-               </View>
-            </View>
 
-            {/* Rating Breakdown */}
-            <View style={styles.breakdownSection}>
-              {[
-                { label: 'Relevance', score: 8, max: 10 },
-                { label: 'Clarity', score: 7, max: 10 },
-                { label: 'Examples', score: 9, max: 10 }
-              ].map((item, idx) => (
-                <View key={idx} style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>{item.label}</Text>
-                  <View style={styles.breakdownBarBg}>
-                    <View style={[styles.breakdownBarFill, { width: `${(item.score / item.max) * 100}%` }]} />
-                  </View>
-                  <Text style={styles.breakdownScore}>{item.score}/{item.max}</Text>
-                </View>
-              ))}
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+            {/* Completion Header */}
+            <View style={styles.completeHeader}>
+              <Text style={{fontSize: 48}}>🎉</Text>
+              <Text style={styles.completeTitle}>Interview Complete!</Text>
+              <Text style={styles.completeSubtitle}>
+                {currentQuestionNum} questions answered
+              </Text>
             </View>
 
             {/* AI Feedback */}
@@ -308,12 +345,8 @@ export const AIPracticeScreen = () => {
 
             {/* Actions */}
             <View style={styles.evalActions}>
-              <TouchableOpacity style={styles.evalTryAgain} onPress={() => setPhase('ACTIVE')}>
-                <RefreshCw size={16} color="#E0E0E0" />
-                <Text style={styles.evalTryAgainText}>Try Again</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.evalNext} onPress={handleNextQuestion}>
-                <Text style={styles.evalNextText}>Next Question</Text>
+              <TouchableOpacity style={styles.evalNext} onPress={handleRestart}>
+                <Text style={styles.evalNextText}>Start New Interview</Text>
                 <ArrowRight size={16} color="#FFF" />
               </TouchableOpacity>
             </View>
@@ -353,7 +386,10 @@ export const AIPracticeScreen = () => {
 
       {phase === 'START' && !showPaywall && (
         <View style={styles.lobbyContainer}>
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: tabBarHeight + 140 }}
+          >
             {/* HEADER */}
             <View style={styles.header}>
               <View style={styles.botAvatarLarge}>
@@ -378,13 +414,13 @@ export const AIPracticeScreen = () => {
             <Text style={styles.sectionLabel}>Choose Interview Type</Text>
             {[
               {
-                id: 'hr', icon: '👔', title: 'HR Interview', subtitle: 'Soft skills, motivation, teamwork', color: '#2d5986', gradient: ['#1e3a5f', '#2d5986'],
+                id: 'hr', icon: <Briefcase size={28} color="#60a5fa" />, title: 'HR Interview', subtitle: 'Soft skills, motivation, teamwork', color: '#2d5986', gradient: ['#1e3a5f', '#2d5986'],
               },
               {
-                id: 'tech', icon: '💻', title: 'Technical', subtitle: 'Code, architecture, best practices', color: '#4338ca', gradient: ['#1a1e3a', '#4338ca'],
+                id: 'tech', icon: <Code2 size={28} color="#818cf8" />, title: 'Technical', subtitle: 'Code, architecture, best practices', color: '#4338ca', gradient: ['#1a1e3a', '#4338ca'],
               },
               {
-                id: 'combined', icon: '🎯', title: 'Full Interview', subtitle: 'HR + Technical combined', color: '#065f46', gradient: ['#1a3a2d', '#065f46'],
+                id: 'combined', icon: <Target size={28} color="#34d399" />, title: 'Full Interview', subtitle: 'HR + Technical combined', color: '#065f46', gradient: ['#1a3a2d', '#065f46'],
               },
             ].map(mode => (
               <TouchableOpacity
@@ -399,7 +435,7 @@ export const AIPracticeScreen = () => {
                   colors={selectedMode === mode.id ? mode.gradient : ['#161827', '#1e2035']}
                   style={styles.modeCardInner}
                 >
-                  <Text style={styles.modeIcon}>{mode.icon}</Text>
+                  {mode.icon}
                   <View style={styles.modeInfo}>
                     <Text style={styles.modeTitle}>{mode.title}</Text>
                     <Text style={styles.modeSubtitle}>{mode.subtitle}</Text>
@@ -510,7 +546,7 @@ export const AIPracticeScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (tabBarHeight: number) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0d0f1a',
@@ -599,9 +635,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     gap: 16,
-  },
-  modeIcon: {
-    fontSize: 32,
   },
   modeInfo: {
     flex: 1,
@@ -697,11 +730,10 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     position: 'absolute',
-    bottom: 0,
+    bottom: tabBarHeight,
     left: 0,
     right: 0,
     padding: 20,
-    paddingBottom: 36,
     backgroundColor: '#0d0f1a',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.05)',
@@ -856,7 +888,7 @@ const styles = StyleSheet.create({
   hrBubbleText: {
     color: '#FFF',
     fontSize: 16,
-    lineHeight: 26,
+    lineHeight: 24,
   },
 
   middleSection: {
@@ -993,6 +1025,23 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     alignSelf: 'center',
     marginBottom: 24,
+  },
+  completeHeader: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  completeTitle: {
+    color: '#FFF',
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  completeSubtitle: {
+    color: '#A0A0B0',
+    fontSize: 16,
+    textAlign: 'center',
   },
   evalHeader: {
     color: '#FFF',

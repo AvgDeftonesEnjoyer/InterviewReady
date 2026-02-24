@@ -46,7 +46,9 @@ class StartInterviewView(APIView):
 
         # 4. Generate first message from AI
         system_prompt = build_prompt(mode, language, count)
-        first_message = get_ai_response(system_prompt, [])
+        first_message = get_ai_response(system_prompt, [
+            {'role': 'user', 'content': 'Start the interview.'}
+        ])
 
         # 5. Create session
         session = InterviewSession.objects.create(
@@ -89,7 +91,8 @@ class SendMessageView(APIView):
         system_prompt = build_prompt(
             session.mode,
             session.language,
-            session.question_count_target
+            session.question_count_target,
+            current_question=session.question_count
         )
         ai_response = get_ai_response(system_prompt, session.messages)
 
@@ -98,7 +101,9 @@ class SendMessageView(APIView):
         ai_response = ai_response.replace('[INTERVIEW_COMPLETE]', '').strip()
 
         session.messages.append({'role': 'assistant', 'content': ai_response})
-        session.question_count += 1
+
+        if not is_complete:
+            session.question_count += 1
 
         if is_complete:
             session.status = 'completed'
