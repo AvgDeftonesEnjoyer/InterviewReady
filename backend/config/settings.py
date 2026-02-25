@@ -135,7 +135,8 @@ REST_FRAMEWORK = {
         'anon': '100/day',
         'user': '1000/day',
         'ai_requests': '30/hour',
-    }
+    },
+    'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
 }
 
 SIMPLE_JWT = {

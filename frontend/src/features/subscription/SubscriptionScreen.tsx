@@ -6,12 +6,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Check, X, ShieldCheck, Zap, Star } from 'lucide-react-native';
 
 const FEATURES = [
-  { name: 'Basic Interview Questions', free: true, pro: true },
-  { name: 'Daily Progress Tracking', free: true, pro: true },
-  { name: 'Unlimited AI Sandbox', free: false, pro: true },
-  { name: 'Hard Scripted Scenarios', free: false, pro: true },
-  { name: 'Advanced Analytics', free: false, pro: true },
-  { name: 'Priority Support', free: false, pro: true },
+  { name: 'Basic Interview Questions', free: true, pro: true, proPlus: true },
+  { name: 'Daily Progress Tracking', free: true, pro: true, proPlus: true },
+  { name: 'Unlimited AI Sandbox', free: false, pro: true, proPlus: true },
+  { name: 'Hard Scripted Scenarios', free: false, pro: true, proPlus: true },
+  { name: 'Advanced Analytics', free: false, pro: true, proPlus: true },
+  { name: 'Priority Support', free: false, pro: false, proPlus: true },
 ];
 
 const TESTIMONIALS = [
@@ -61,7 +61,8 @@ export const SubscriptionScreen = () => {
     );
   }
 
-  if (sub?.is_pro) {
+  if (sub && sub.is_active && sub.plan !== 'FREE') {
+    const planName = sub.plan === 'PRO_PLUS' ? 'PRO PLUS' : 'PRO';
     return (
       <View style={styles.center}>
         <LinearGradient
@@ -71,8 +72,8 @@ export const SubscriptionScreen = () => {
           <View style={styles.proIconBg}>
              <ShieldCheck color={theme.colors.status.warning} size={48} />
           </View>
-          <Text style={styles.proActiveTitle}>You are a PRO</Text>
-          <Text style={styles.proActiveDesc}>Your unlimited access to all premium features is active. Keep crushing those interviews!</Text>
+          <Text style={styles.proActiveTitle}>You are a {planName}</Text>
+          <Text style={styles.proActiveDesc}>Your unlimited access to premium features is active. Keep crushing those interviews!</Text>
         </LinearGradient>
       </View>
     );

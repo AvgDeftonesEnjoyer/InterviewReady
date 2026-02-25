@@ -1,6 +1,7 @@
 import openai
 from django.conf import settings
 import logging
+import asyncio
 import time
 from typing import Optional
 from openai import RateLimitError, APIConnectionError, APITimeoutError, InternalServerError
@@ -40,7 +41,9 @@ class OpenAIServerError(OpenAIError):
 
 def get_ai_response(system_prompt: str, messages: list, retry_count: int = 0) -> str:
     """
+    DEPRECATED: Use aget_ai_response for async views.
     Send conversation to GPT model and get AI response.
+    
     Model is configurable via OPENAI_INTERVIEW_MODEL setting.
 
     Features:
@@ -115,6 +118,73 @@ def get_ai_response(system_prompt: str, messages: list, retry_count: int = 0) ->
         raise OpenAIError(f"An unexpected error occurred while processing your request: {str(e)}")
 
 
+async def aget_ai_response(system_prompt: str, messages: list, retry_count: int = 0) -> str:
+    """
+    Send conversation to GPT model and get AI response asynchronously.
+    """
+    client = openai.AsyncOpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        timeout=TIMEOUT_SECONDS
+    )
+
+    history = messages[-12:]
+
+    try:
+        response = await client.chat.completions.create(
+            model=settings.OPENAI_INTERVIEW_MODEL,
+            messages=[
+                {'role': 'system', 'content': system_prompt},
+                *history
+            ],
+            max_tokens=300,
+            temperature=0.7,
+        )
+        
+        if not response.choices or not response.choices[0].message.content:
+            logger.warning("OpenAI returned empty response")
+            return "I apologize, but I'm having trouble generating a response. Could you please try again?"
+        
+        content = response.choices[0].message.content.strip()
+        logger.info(f"OpenAI response received ({len(content)} chars)")
+        return content
+        
+    except RateLimitError as e:
+        logger.warning(f"OpenAI rate limit exceeded: {str(e)}")
+        
+        if retry_count < MAX_RETRIES:
+            wait_time = RETRY_DELAY * (2 ** retry_count)
+            logger.info(f"Retrying in {wait_time} seconds... (attempt {retry_count + 1}/{MAX_RETRIES})")
+            await asyncio.sleep(wait_time)
+            return await aget_ai_response(system_prompt, messages, retry_count + 1)
+        
+        raise OpenAIRateLimitError(
+            "AI service is currently experiencing high demand. Please try again in a few minutes."
+        )
+        
+    except APITimeoutError as e:
+        logger.error(f"OpenAI request timed out: {str(e)}")
+        raise OpenAITimeoutError(
+            "AI service request timed out. Please check your connection and try again."
+        )
+        
+    except APIConnectionError as e:
+        logger.error(f"OpenAI connection error: {str(e)}")
+        raise OpenAIConnectionError(
+            "Unable to connect to AI service. Please check your internet connection."
+        )
+        
+    except InternalServerError as e:
+        logger.error(f"OpenAI server error: {str(e)}")
+        raise OpenAIServerError(
+            "AI service is temporarily unavailable. Please try again later."
+        )
+        
+    except Exception as e:
+        logger.error(f"Unexpected OpenAI error: {type(e).__name__} - {str(e)}")
+        raise OpenAIError(f"An unexpected error occurred while processing your request: {str(e)}")
+
+
+
 def transcribe_audio(audio_file, retry_count: int = 0) -> str:
     """
     Transcribe audio using OpenAI Whisper.
@@ -155,6 +225,61 @@ def transcribe_audio(audio_file, retry_count: int = 0) -> str:
             logger.info(f"Retrying transcription in {wait_time} seconds...")
             time.sleep(wait_time)
             return transcribe_audio(audio_file, retry_count + 1)
+        
+        raise OpenAIRateLimitError(
+            "Transcription service is busy. Please try again in a few minutes."
+        )
+        
+    except APITimeoutError as e:
+        logger.error(f"Transcription request timed out: {str(e)}")
+        raise OpenAITimeoutError(
+            "Audio transcription timed out. Please try a shorter audio clip."
+        )
+        
+    except APIConnectionError as e:
+        logger.error(f"Transcription connection error: {str(e)}")
+        raise OpenAIConnectionError(
+            "Unable to connect to transcription service."
+        )
+        
+    except Exception as e:
+        logger.error(f"Unexpected transcription error: {type(e).__name__} - {str(e)}")
+        raise OpenAIError(f"Transcription failed: {str(e)}")
+
+async def atranscribe_audio(audio_file, retry_count: int = 0) -> str:
+    """
+    Transcribe audio using OpenAI Whisper asynchronously.
+    """
+    client = openai.AsyncOpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        timeout=TIMEOUT_SECONDS
+    )
+
+    try:
+        logger.info(f"Starting audio transcription (file size: {audio_file.size if hasattr(audio_file, 'size') else 'unknown'})")
+
+        transcript = await client.audio.transcriptions.create(
+            model=settings.OPENAI_TRANSCRIPTION_MODEL,
+            file=audio_file,
+            language='en',
+        )
+        
+        if not transcript or not transcript.text:
+            logger.warning("Whisper returned empty transcription")
+            return ""
+        
+        text = transcript.text.strip()
+        logger.info(f"Audio transcription completed ({len(text)} chars)")
+        return text
+        
+    except RateLimitError as e:
+        logger.warning(f"OpenAI rate limit exceeded for transcription: {str(e)}")
+        
+        if retry_count < MAX_RETRIES:
+            wait_time = RETRY_DELAY * (2 ** retry_count)
+            logger.info(f"Retrying transcription in {wait_time} seconds...")
+            await asyncio.sleep(wait_time)
+            return await atranscribe_audio(audio_file, retry_count + 1)
         
         raise OpenAIRateLimitError(
             "Transcription service is busy. Please try again in a few minutes."

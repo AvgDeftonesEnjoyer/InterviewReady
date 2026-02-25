@@ -3,9 +3,8 @@ import { storage } from '../utils/storage';
 import { useAuthStore } from '../store/useAuthStore';
 import NetInfo from '@react-native-community/netinfo';
 
-// Change to LAN IP when testing on physical device, or 10.0.2.2 for Android Emulator
-// To find your Mac's IP: run `ipconfig getifaddr en0` in terminal
-export const API_URL = __DEV__ ? 'http://192.168.1.100:8000' : 'https://your-production-api.com';
+// Local dev API URL
+export const API_URL = __DEV__ ? 'http://127.0.0.1:8000' : 'https://your-production-api.com';
 
 // Retry configuration
 const MAX_RETRIES = 3;
@@ -97,7 +96,10 @@ apiClient.interceptors.response.use(
     }
 
     // Trigger refresh logic on 401
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const publicEndpoints = ['/auth/login/', '/auth/register/', '/auth/google/', '/auth/apple/'];
+    const isPublicEndpoint = publicEndpoints.some(endpoint => originalRequest.url?.includes(endpoint));
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isPublicEndpoint) {
       originalRequest._retry = true;
 
       try {

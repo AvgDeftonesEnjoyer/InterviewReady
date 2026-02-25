@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('secret-hq/', admin.site.urls),
     # App URLs will be added here as we implement them
     path('api/home/', include('home.urls')),
     path('auth/', include('users.urls')),

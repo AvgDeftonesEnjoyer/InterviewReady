@@ -8,11 +8,12 @@ import { apiClient } from '../../api/client';
 import { storage } from '../../utils/storage';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
-import { changeLanguage } from '../../i18n';
+import { AnimatedInput } from '../../components/AnimatedInput';
+// Google Auth via Expo
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 
-// Dummy imports for Social Auth
-// import { GoogleSignin } from '@react-native-google-signin/google-signin';
-// import * as AppleAuthentication from 'expo-apple-authentication';
+WebBrowser.maybeCompleteAuthSession();
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -25,7 +26,7 @@ export const LoginScreen = () => {
   const navigation = useNavigation<any>();
   const setUser = useAuthStore((state) => state.setUser);
   
-  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
+  const { control, handleSubmit, setError, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
 
@@ -48,7 +49,18 @@ export const LoginScreen = () => {
       console.error('Login Message:', error.message);
       
       let errorMessage = 'Login failed. Please check your credentials.';
-      if (error.response?.data?.detail) {
+      if (error.response?.data?.error) {
+        const apiError = error.response.data.error;
+        if (apiError === 'Email not found.') {
+          setError('email', { type: 'manual', message: apiError });
+          return; 
+        } else if (apiError === 'Incorrect password.') {
+          setError('password', { type: 'manual', message: apiError });
+          return;
+        } else {
+          errorMessage = apiError;
+        }
+      } else if (error.response?.data?.detail) {
         errorMessage = error.response.data.detail;
       } else if (error.message === 'Network Error') {
          errorMessage = 'Server is unreachable. Please ensure the backend is running.';
@@ -56,6 +68,54 @@ export const LoginScreen = () => {
 
       toast.error(errorMessage, { duration: 4000 });
     }
+  };
+
+  // Setup Google Auth Session
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'YOUR_WEB_CLIENT_ID',
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'YOUR_IOS_CLIENT_ID',
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'YOUR_ANDROID_CLIENT_ID',
+  });
+
+  // Effect to handle the Google Auth response
+  React.useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      if (authentication?.idToken) {
+        handleGoogleBackendLogin(authentication.idToken);
+      } else {
+        toast.error('Google Sign-In failed: No ID token returned.');
+      }
+    } else if (response?.type === 'error') {
+      toast.error('Google Sign-In failed. Please try again.');
+    }
+  }, [response]);
+
+  const handleGoogleBackendLogin = async (idToken: string) => {
+    try {
+      const res = await apiClient.post('/auth/google/', { token: idToken });
+      const { access, refresh, user_id, ui_language, onboarding_completed, email } = res.data;
+
+      await storage.setAccessToken(access);
+      await storage.setRefreshToken(refresh);
+
+      if (ui_language) {
+        await changeLanguage(ui_language);
+      }
+
+      // We might not get the user's email directly from the Expo res without decoding,
+      // but the backend handles it and we can just set the id state. 
+      setUser({ id: user_id, email: email || 'user@example.com' }, !!onboarding_completed);
+      toast.success('Successfully logged in with Google!');
+
+    } catch (error: any) {
+      console.error('Google Login Backend Error:', error);
+      toast.error('Failed to authenticate with our servers.');
+    }
+  };
+
+  const handleGoogleLoginPress = () => {
+    promptAsync();
   };
 
   return (
@@ -66,7 +126,7 @@ export const LoginScreen = () => {
         control={control}
         name="email"
         render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
+          <AnimatedInput
             style={[styles.input, errors.email && styles.inputError]}
             placeholder="Email"
             placeholderTextColor="#888"
@@ -75,6 +135,7 @@ export const LoginScreen = () => {
             value={value}
             autoCapitalize="none"
             keyboardType="email-address"
+            error={!!errors.email}
           />
         )}
       />
@@ -84,7 +145,7 @@ export const LoginScreen = () => {
         control={control}
         name="password"
         render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
+          <AnimatedInput
             style={[styles.input, errors.password && styles.inputError]}
             placeholder="Password"
             placeholderTextColor="#888"
@@ -92,6 +153,7 @@ export const LoginScreen = () => {
             onChangeText={onChange}
             value={value}
             secureTextEntry
+            error={!!errors.password}
           />
         )}
       />
@@ -113,7 +175,11 @@ export const LoginScreen = () => {
       </TouchableOpacity>
 
       <View style={styles.socialContainer}>
-        <TouchableOpacity style={styles.socialButton}>
+        <TouchableOpacity 
+          style={styles.socialButton} 
+          onPress={handleGoogleLoginPress}
+          disabled={!request}
+        >
           <Text style={styles.socialButtonText}>Google Sign-In</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000' }]}>

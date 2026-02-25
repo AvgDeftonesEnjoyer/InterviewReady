@@ -86,11 +86,11 @@ class AuthService:
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            raise ValueError("Invalid credentials.")
+            raise ValueError("Email not found.")
 
         user = authenticate(username=user.username, password=password)
         if not user:
-            raise ValueError("Invalid credentials.")
+            raise ValueError("Incorrect password.")
         
         return user, AuthService._generate_tokens(user)
 

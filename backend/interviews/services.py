@@ -3,11 +3,13 @@ from django.utils import timezone
 import pytz
 from .models import InterviewSession
 
-# Daily interview limits per plan (from spec)
-DAILY_LIMITS = {
-    'FREE': 1,      # 1 interview per day
-    'PRO': 5,       # $5/mo - 5 interviews per day
-    'PRO_PLUS': 10, # $10/mo - 10 interviews per day
+from subscriptions.models import SubscriptionPlan
+
+# Fallback limits if DB has not been seeded yet
+FALLBACK_DAILY_LIMITS = {
+    SubscriptionPlan.PlanType.FREE: 1,      # 1 interview per day
+    SubscriptionPlan.PlanType.PRO: 5,       # $5/mo - 5 interviews per day
+    SubscriptionPlan.PlanType.PRO_PLUS: 10, # $10/mo - 10 interviews per day
 }
 
 
@@ -45,7 +47,12 @@ def get_quota(user) -> dict:
     TIMEZONE: Uses user's local timezone for accurate daily limits.
     """
     plan = get_user_plan(user)
-    limit = DAILY_LIMITS.get(plan, 1)
+    
+    try:
+        plan_config = SubscriptionPlan.objects.get(name=plan)
+        limit = plan_config.daily_interview_limit
+    except SubscriptionPlan.DoesNotExist:
+        limit = FALLBACK_DAILY_LIMITS.get(plan, 1)
     
     # Get today's date in user's timezone
     today = get_today_in_user_timezone(user)

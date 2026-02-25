@@ -8,6 +8,7 @@ import { apiClient } from '../../api/client';
 import { storage } from '../../utils/storage';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
+import { AnimatedInput } from '../../components/AnimatedInput';
 
 const registerSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters'),
@@ -21,7 +22,7 @@ export const RegisterScreen = () => {
   const navigation = useNavigation<any>();
   const setUser = useAuthStore((state) => state.setUser);
   
-  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterFormData>({
+  const { control, handleSubmit, setError, formState: { errors, isSubmitting } } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
   });
 
@@ -41,7 +42,19 @@ export const RegisterScreen = () => {
       
       let errorMessage = 'Registration failed. Please try again later.';
       if (error.response?.data) {
-        // DRF often returns { "email": ["This field must be unique."] } or similar
+        let hasFieldError = false;
+        
+        Object.keys(error.response.data).forEach((key) => {
+          if (['username', 'email', 'password'].includes(key)) {
+            const drfError = error.response.data[key];
+            const messageStr = Array.isArray(drfError) ? drfError[0] : drfError;
+            setError(key as 'username'|'email'|'password', { type: 'manual', message: messageStr });
+            hasFieldError = true;
+          }
+        });
+
+        if (hasFieldError) return; 
+
         const firstErrorKey = Object.keys(error.response.data)[0];
         if (firstErrorKey) {
             const firstErrorValue = error.response.data[firstErrorKey];
@@ -63,7 +76,7 @@ export const RegisterScreen = () => {
         control={control}
         name="username"
         render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
+          <AnimatedInput
             style={[styles.input, errors.username && styles.inputError]}
             placeholder="Username"
             placeholderTextColor="#888"
@@ -71,6 +84,7 @@ export const RegisterScreen = () => {
             onChangeText={onChange}
             value={value}
             autoCapitalize="none"
+            error={!!errors.username}
           />
         )}
       />
@@ -80,7 +94,7 @@ export const RegisterScreen = () => {
         control={control}
         name="email"
         render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
+          <AnimatedInput
             style={[styles.input, errors.email && styles.inputError]}
             placeholder="Email"
             placeholderTextColor="#888"
@@ -89,6 +103,7 @@ export const RegisterScreen = () => {
             value={value}
             autoCapitalize="none"
             keyboardType="email-address"
+            error={!!errors.email}
           />
         )}
       />
@@ -98,7 +113,7 @@ export const RegisterScreen = () => {
         control={control}
         name="password"
         render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
+          <AnimatedInput
             style={[styles.input, errors.password && styles.inputError]}
             placeholder="Password"
             placeholderTextColor="#888"
@@ -106,6 +121,7 @@ export const RegisterScreen = () => {
             onChangeText={onChange}
             value={value}
             secureTextEntry
+            error={!!errors.password}
           />
         )}
       />
