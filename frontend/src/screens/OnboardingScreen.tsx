@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiClient } from '../api/client';
 import { theme } from '../theme';
@@ -46,7 +46,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
   const [specialization, setSpecialization] = useState('');
   const [experience, setExperience] = useState('');
   const [loading, setLoading] = useState(false);
-  const { setOnboardingCompleted } = useAuthStore();
+  const { setUser, setOnboardingCompleted } = useAuthStore();
 
   const handleNext = async () => {
     if (step === 1 && language) setStep(2);
@@ -54,14 +54,21 @@ export const OnboardingScreen = ({ navigation }: any) => {
     else if (step === 3 && experience) {
       setLoading(true);
       try {
-        await apiClient.post('/auth/onboarding/', {
+        const { data } = await apiClient.post('/auth/onboarding/', {
           language,
           specialization,
           experience_level: experience
         });
-        setOnboardingCompleted(true);
+        
+        // Update onboarding status from server response
+        if (data.onboarding_completed) {
+          setOnboardingCompleted(true);
+        }
+        
+        console.log('Onboarding completed successfully');
       } catch (error) {
-        console.error('Failed formatting onboarding', error);
+        console.error('Failed to complete onboarding', error);
+        Alert.alert('Error', 'Failed to complete onboarding. Please try again.');
       } finally {
         setLoading(false);
       }

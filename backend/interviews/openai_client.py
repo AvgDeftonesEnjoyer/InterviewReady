@@ -60,7 +60,7 @@ def get_ai_response(system_prompt: str, messages: list, retry_count: int = 0) ->
 
     try:
         response = client.chat.completions.create(
-            model=settings.OPENAI_INTERVIEW_MODEL,  # Конфігурована модель
+            model=settings.OPENAI_INTERVIEW_MODEL,  # Configurable model
             messages=[
                 {'role': 'system', 'content': system_prompt},
                 *history
@@ -134,7 +134,7 @@ def transcribe_audio(audio_file, retry_count: int = 0) -> str:
         logger.info(f"Starting audio transcription (file size: {audio_file.size if hasattr(audio_file, 'size') else 'unknown'})")
 
         transcript = client.audio.transcriptions.create(
-            model=settings.OPENAI_TRANSCRIPTION_MODEL,  # Конфігурована модель
+            model=settings.OPENAI_TRANSCRIPTION_MODEL,  # Configurable model
             file=audio_file,
             language='en',  # Optional: specify language if known
         )

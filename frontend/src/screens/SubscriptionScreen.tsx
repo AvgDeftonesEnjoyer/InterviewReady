@@ -7,6 +7,8 @@ import {
   ScrollView,
   Alert,
   Platform,
+  Linking,
+  AppState,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../theme';
@@ -15,83 +17,231 @@ import { PlanCard } from '../components/PlanCard';
 import { PLANS } from '../config/plans';
 import { ActivityIndicator } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
+import { PurchasesPackage } from 'react-native-purchases';
+import { getOfferings, purchasePackage, restorePurchases } from '../utils/revenuecat';
+
+// Declare window for TypeScript (web only)
+declare global {
+  interface Window {
+    open: (url?: string, target?: string, features?: string) => Window | null;
+  }
+}
 
 export const SubscriptionScreen = () => {
   const navigation = useNavigation<any>();
-  const [status, setStatus] = useState<any>(null);
-  const [cycle, setCycle] = useState<'monthly' | 'annual'>('monthly');
-  const [loading, setLoading] = useState(true);
-  const [upgrading, setUpgrading] = useState(false);
+  const [status, setStatus]       = useState<any>(null);
+  const [packages, setPackages]   = useState<PurchasesPackage[]>([]);
+  const [cycle, setCycle]         = useState<'monthly' | 'annual'>('monthly');
+  const [loading, setLoading]     = useState(true);
+  const [purchasing, setPurchasing] = useState(false);
 
   useEffect(() => {
-    fetchStatus();
+    loadData();
+
+    // AppState listener для Android (повернення після Stripe):
+    const subscription = AppState.addEventListener(
+      'change',
+      async (nextState) => {
+        if (nextState === 'active') {
+          // Юзер повернувся в додаток — перевірити статус
+          await loadData();
+        }
+      }
+    );
+
+    // WEB: Перевірка URL параметрів після повернення з Stripe
+    let pollingInterval: NodeJS.Timeout | null = null;
+    if (Platform.OS === 'web') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('subscription') === 'success') {
+        // Очистити URL
+        window.history.replaceState({}, '', window.location.pathname);
+        
+        // Polling: перевіряти статус кожні 2 секунди (max 15 секунд)
+        let attempts = 0;
+        const maxAttempts = 15;
+        
+        pollingInterval = setInterval(async () => {
+          attempts++;
+          console.log(`Polling attempt ${attempts}/${maxAttempts}...`);
+          await loadData();
+          
+          // Stop polling if subscription is active or max attempts reached
+          if (attempts >= maxAttempts) {
+            if (pollingInterval) clearInterval(pollingInterval);
+          }
+        }, 2000);
+      }
+    }
+
+    return () => {
+      subscription?.remove();
+      if (pollingInterval) clearInterval(pollingInterval);
+    };
   }, []);
 
-  const fetchStatus = async () => {
+  const loadData = async () => {
+    setLoading(true);
     try {
+      // Завантажити статус підписки з нашого API
       const { data } = await apiClient.get('/subscriptions/status/');
       setStatus(data);
+
+      // Завантажити пакети з RevenueCat (для iOS)
+      if (Platform.OS === 'ios') {
+        const pkgs = await getOfferings();
+        setPackages(pkgs);
+      }
     } catch (e) {
-      console.error('Failed to load subscription status', e);
+      console.error('Failed to load subscription data', e);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpgrade = async (plan: string) => {
-    setUpgrading(true);
+  const handleUpgrade = async (plan: 'PRO' | 'PRO_PLUS') => {
+    console.log('handleUpgrade called:', { plan, platform: Platform.OS });
+    setPurchasing(true);
+
     try {
-      await apiClient.post('/subscriptions/upgrade/', {
-        plan,
-        billing_cycle: cycle,
-      });
-      await fetchStatus();
-      Alert.alert('Success', `Upgraded to ${PLANS[plan as keyof typeof PLANS].name} successfully!`);
-      // Could also go back or show nice animation
-    } catch (e) {
-      Alert.alert('Error', 'Upgrade failed.');
+      if (Platform.OS === 'android' || Platform.OS === 'web') {
+        // ANDROID & WEB → Stripe через браузер
+        console.log('Starting Stripe checkout (Android/Web)');
+        await handleStripeCheckout(plan);
+      } else {
+        // iOS → Apple IAP через RevenueCat
+        console.log('iOS: Starting Apple IAP');
+        await handleAppleIAP(plan);
+      }
+    } catch (e: any) {
+      console.error('handleUpgrade error:', e);
+      if (!e.userCancelled) {
+        Alert.alert('Error', 'Purchase failed. Please try again.');
+      }
     } finally {
-      setUpgrading(false);
+      setPurchasing(false);
+    }
+  };
+
+  // ANDROID & WEB: Stripe
+  const handleStripeCheckout = async (plan: string) => {
+    console.log('Starting Stripe checkout:', { plan, cycle, platform: Platform.OS });
+    try {
+      const { data } = await apiClient.post(
+        '/api/subscriptions/stripe/create-checkout/',
+        { plan, billing_cycle: cycle }
+      );
+
+      console.log('Stripe response:', data);
+
+      if (data.checkout_url) {
+        // Відкрити Stripe в браузері
+        console.log('Opening Stripe checkout:', data.checkout_url);
+        
+        if (Platform.OS === 'web') {
+          // WEB: відкрити в новому вікні
+          window.open(data.checkout_url, '_blank');
+        } else {
+          // ANDROID: відкрити через Linking
+          const supported = await Linking.canOpenURL(data.checkout_url);
+          if (supported) {
+            await Linking.openURL(data.checkout_url);
+          } else {
+            Alert.alert('Error', 'Cannot open browser');
+          }
+        }
+        // Після повернення — AppState listener перевірить статус
+      } else {
+        console.error('No checkout_url in response');
+        Alert.alert('Error', 'Failed to create checkout session');
+      }
+    } catch (e: any) {
+      console.error('Stripe checkout error:', {
+        message: e.message,
+        response: e.response?.data,
+        status: e.response?.status
+      });
+      const errorMsg = e.response?.data?.error || e.message || 'Stripe checkout failed';
+      Alert.alert('Error', errorMsg);
+      throw e;
+    }
+  };
+
+  // iOS: Apple IAP
+  const handleAppleIAP = async (plan: string) => {
+    // Знайти потрібний пакет
+    const targetId = plan === 'PRO'
+      ? `com.interviewready.${plan.toLowerCase()}.${cycle}`
+      : `com.interviewready.proplus.${cycle}`;
+
+    const pkg = packages.find(p =>
+      p.product.identifier === targetId
+    );
+
+    if (!pkg) {
+      Alert.alert('Error', 'Product not available');
+      return;
+    }
+
+    // Купити через Apple IAP
+    const customerInfo = await purchasePackage(pkg);
+
+    // Перевірити що підписка активна
+    const isActive =
+      customerInfo.entitlements.active['pro'] !== undefined ||
+      customerInfo.entitlements.active['pro_plus'] !== undefined;
+
+    if (isActive) {
+      // RevenueCat автоматично надішле webhook на бекенд
+      // Просто оновити UI:
+      await loadData();
+      Alert.alert('Success! 🎉', `Welcome to ${plan.toUpperCase()}!`);
     }
   };
 
   const handleCancel = async () => {
     const performCancel = async () => {
-       try {
-         await apiClient.post('/subscriptions/cancel/');
-         await fetchStatus();
-         if (Platform.OS === 'web') {
-             window.alert('Subscription Canceled. Your subscription will not renew.');
-         } else {
-             Alert.alert('Subscription Canceled', 'Your subscription will not renew.');
-         }
-       } catch(e) {
-          if (Platform.OS === 'web') {
-             window.alert('Error. Could not cancel subscription.');
-          } else {
-             Alert.alert('Error', 'Could not cancel subscription.');
-          }
-       }
+      try {
+        if (Platform.OS === 'android') {
+          await apiClient.post('/subscriptions/stripe/cancel/');
+          await loadData();
+          Alert.alert('Subscription Canceled', 'Your subscription will not renew.');
+        } else {
+          // iOS: через налаштування Apple
+          await Linking.openURL(
+            'https://apps.apple.com/account/subscriptions'
+          );
+          Alert.alert('Info', 'Please cancel your subscription in Apple Settings');
+        }
+      } catch (e) {
+        Alert.alert('Error', 'Could not cancel subscription');
+      }
     };
 
-    if (Platform.OS === 'web') {
-        const confirmed = window.confirm('Are you sure? You will lose PRO access when it expires.');
-        if (confirmed) {
-            performCancel();
+    Alert.alert(
+      'Cancel Subscription',
+      'Are you sure? You will lose PRO access at the end of billing period.',
+      [
+        { text: 'Keep PRO', style: 'cancel' },
+        {
+          text: 'Cancel',
+          style: 'destructive',
+          onPress: performCancel
         }
-    } else {
-        Alert.alert(
-          'Cancel Subscription',
-          'Are you sure? You will lose PRO access when it expires.',
-          [
-            { text: 'Keep PRO', style: 'cancel' },
-            {
-              text: 'Cancel',
-              style: 'destructive',
-              onPress: performCancel
-            }
-          ]
-        );
+      ]
+    );
+  };
+
+  const handleRestore = async () => {
+    try {
+      setPurchasing(true);
+      const customerInfo = await restorePurchases();
+      await loadData();
+      Alert.alert('Done', 'Purchases restored successfully!');
+    } catch (e) {
+      Alert.alert('Error', 'Could not restore purchases');
+    } finally {
+      setPurchasing(false);
     }
   };
 
@@ -153,20 +303,20 @@ export const SubscriptionScreen = () => {
       {currentPlan !== 'FREE' && status?.interviews_limit && (
         <View style={styles.usageCard}>
           <Text style={styles.usageTitle}>Today's Usage</Text>
-          
+
           <View style={styles.progressBarBg}>
-            <View 
+            <View
               style={[
-                styles.progressBarFill, 
+                styles.progressBarFill,
                 { width: `${((status.interviews_limit - status.interviews_remaining) / status.interviews_limit) * 100}%` }
-              ]} 
+              ]}
             />
           </View>
 
           <Text style={styles.usageDesc}>
             {status.interviews_limit - status.interviews_remaining} / {status.interviews_limit} interviews used
           </Text>
-          
+
           {status.expires_at && (
             <Text style={styles.renewText}>
               Renews: {formatDate(status.expires_at)}
@@ -182,9 +332,21 @@ export const SubscriptionScreen = () => {
           plan={plan}
           isCurrentPlan={plan === currentPlan}
           billingCycle={cycle}
-          onUpgrade={() => handleUpgrade(plan)}
+          onUpgrade={() => handleUpgrade(plan as 'PRO' | 'PRO_PLUS')}
         />
       ))}
+
+      {/* RESTORE PURCHASES */}
+      {Platform.OS === 'ios' && currentPlan === 'FREE' && (
+        <TouchableOpacity
+          style={styles.restoreBtn}
+          onPress={handleRestore}
+        >
+          <Text style={styles.restoreText}>
+            Restore Purchases
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* CANCEL */}
       {currentPlan !== 'FREE' && (
@@ -197,8 +359,8 @@ export const SubscriptionScreen = () => {
           </Text>
         </TouchableOpacity>
       )}
-      
-      {upgrading && (
+
+      {purchasing && (
         <View style={styles.upgradingOverlay}>
            <ActivityIndicator size="large" color="#fff" />
         </View>
@@ -302,6 +464,20 @@ const styles = StyleSheet.create({
   renewText: {
     color: theme.colors.text.muted,
     fontSize: 13,
+  },
+  restoreBtn: {
+    marginTop: 16,
+    padding: 16,
+    alignItems: 'center',
+    backgroundColor: '#161827',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  restoreText: {
+    color: theme.colors.text.primary,
+    fontWeight: '600',
+    fontSize: 15,
   },
   cancelBtn: {
     marginTop: 16,

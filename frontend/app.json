@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "InterviewReady",
+    "slug": "interview-ready",
+    "scheme": "interviewready",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.interviewready.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0d0f1a"
+      },
+      "package": "com.interviewready.app"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

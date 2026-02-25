@@ -22,12 +22,14 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
 
 # SECURITY: Explicit allowed hosts - no wildcards in production
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '192.168.1.100', '0.0.0.0'])
 
 # SECURITY: CSRF trusted origins for API
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
     'http://localhost:8081',
     'http://127.0.0.1:8081',
+    'http://localhost:19006',  # Expo web
+    'http://192.168.1.',  # Expo mobile on LAN
 ])
 
 INSTALLED_APPS = [
@@ -169,15 +171,40 @@ CELERY_BEAT_SCHEDULE = {
     }
 }
 
-STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='')
-STRIPE_WEBHOOK_SECRET = env('STRIPE_WEBHOOK_SECRET', default='')
+# Stripe (Android)
+STRIPE_SECRET_KEY           = env('STRIPE_SECRET_KEY', default='')
+STRIPE_WEBHOOK_SECRET       = env('STRIPE_WEBHOOK_SECRET', default='')
+STRIPE_PRO_MONTHLY_PRICE_ID = env('STRIPE_PRO_MONTHLY_PRICE_ID', default='')
+STRIPE_PRO_ANNUAL_PRICE_ID  = env('STRIPE_PRO_ANNUAL_PRICE_ID', default='')
+STRIPE_PRO_PLUS_MONTHLY_PRICE_ID = env('STRIPE_PRO_PLUS_MONTHLY_PRICE_ID', default='')
+STRIPE_PRO_PLUS_ANNUAL_PRICE_ID  = env('STRIPE_PRO_PLUS_ANNUAL_PRICE_ID', default='')
+
+# RevenueCat (iOS + Android verification)
+REVENUECAT_API_KEY      = env('REVENUECAT_API_KEY', default='')
+REVENUECAT_WEBHOOK_AUTH = env('REVENUECAT_WEBHOOK_AUTH', default='')
+
+# Apple IAP
 APPLE_SHARED_SECRET = env('APPLE_SHARED_SECRET', default='')
 APPLE_CLIENT_ID = env('APPLE_CLIENT_ID', default='')
 APPLE_BUNDLE_ID = env('APPLE_BUNDLE_ID', default='')
+
+# Google/Stripe
 OPENAI_API_KEY = env('OPENAI_API_KEY', default='')
 GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID', default='')
 
-# AI Models - конфігуровані моделі для різних задач
+# Plan pricing config
+PLAN_PRICES = {
+    'PRO': {
+        'monthly': 4.99,
+        'annual':  47.99,
+    },
+    'PRO_PLUS': {
+        'monthly': 9.99,
+        'annual':  95.99,
+    },
+}
+
+# AI Models - configured models for different tasks
 OPENAI_INTERVIEW_MODEL = env(
     'OPENAI_INTERVIEW_MODEL',
     default='gpt-4o-mini'

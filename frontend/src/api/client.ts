@@ -4,7 +4,8 @@ import { useAuthStore } from '../store/useAuthStore';
 import NetInfo from '@react-native-community/netinfo';
 
 // Change to LAN IP when testing on physical device, or 10.0.2.2 for Android Emulator
-export const API_URL = 'http://127.0.0.1:8000';
+// To find your Mac's IP: run `ipconfig getifaddr en0` in terminal
+export const API_URL = __DEV__ ? 'http://192.168.1.100:8000' : 'https://your-production-api.com';
 
 // Retry configuration
 const MAX_RETRIES = 3;
@@ -52,11 +53,23 @@ apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) =>
     console.warn('API request attempted while offline:', config.url);
     // Still allow the request to go through - axios will handle the network error
   }
+
+  // Don't add Authorization header to public endpoints
+  const publicEndpoints = ['/auth/register/', '/auth/login/', '/auth/refresh/', '/auth/google/', '/auth/apple/'];
+  const isPublicEndpoint = publicEndpoints.some(endpoint => config.url?.includes(endpoint));
   
-  const token = await storage.getAccessToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (!isPublicEndpoint) {
+    const token = await storage.getAccessToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log('[API] Added auth token to:', config.url);
+    } else {
+      console.log('[API] No token found for:', config.url);
+    }
+  } else {
+    console.log('[API] Skipping auth for public endpoint:', config.url);
   }
+  
   return config;
 });
 

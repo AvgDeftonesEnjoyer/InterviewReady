@@ -6,6 +6,7 @@ from users.models import User
 class SubscriptionService:
     @staticmethod
     def get_active_subscription(user: User) -> Subscription | None:
+        """Get user's active subscription (if any)."""
         return Subscription.objects.filter(
             user=user,
             status='ACTIVE'
@@ -26,7 +27,7 @@ class SubscriptionService:
         return 'FREE'
 
     @staticmethod
-    def is_pro(user: User) -> bool: 
+    def is_pro(user: User) -> bool:
         plan = SubscriptionService.get_plan(user)
         return plan in ['PRO', 'PRO_PLUS']
 

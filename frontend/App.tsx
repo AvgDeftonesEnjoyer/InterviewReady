@@ -3,13 +3,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RootNavigator } from './src/navigation';
 import { useAuthStore } from './src/store/useAuthStore';
 import { storage } from './src/utils/storage';
+import { apiClient } from './src/api/client';
 import { Toaster } from 'react-hot-toast';
 import { initI18n } from './src/i18n';
 
 const queryClient = new QueryClient();
 
 export default function App() {
-  const { setUser, setLoading, isLoading } = useAuthStore();
+  const { user, setUser, setLoading, setOnboardingCompleted, isLoading } = useAuthStore();
   const [i18nReady, setI18nReady] = useState(false);
 
   useEffect(() => {
@@ -22,8 +23,30 @@ export default function App() {
       try {
         const token = await storage.getAccessToken();
         if (token) {
-          // Verify token or decode it (Mocking success for pure UI setup)
-          setUser({ id: 1, email: 'user@test.com' });
+          // Verify token by fetching user data from server
+          apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          
+          try {
+            const { data } = await apiClient.get('/auth/me/');
+            
+            // Set user and onboarding status from server response
+            setUser({
+              id: data.id,
+              email: data.email,
+              username: data.username,
+              is_internal_tester: data.is_internal_tester,
+            }, data.onboarding_completed);
+            
+            console.log('Session restored:', {
+              email: data.email,
+              onboarding_completed: data.onboarding_completed
+            });
+          } catch (error) {
+            // Token invalid — clear and require login
+            console.log('Token invalid, requiring login');
+            await storage.clearAuth();
+            setUser(null, false);
+          }
         }
       } catch (error) {
         console.error("Failed to restore session", error);
@@ -33,7 +56,7 @@ export default function App() {
     };
 
     restoreSession();
-  }, [setLoading, setUser]);
+  }, [setLoading, setUser, setOnboardingCompleted]);
 
   if (isLoading || !i18nReady) return null; // Can render Splash Screen here
 

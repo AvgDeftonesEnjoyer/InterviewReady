@@ -4,14 +4,23 @@ from django.contrib.auth.models import AbstractUser
 class User(AbstractUser):
     """
     Custom User model for InterviewReady.
+    Email is unique, username can be any value.
+    Authentication is done via email.
     """
     is_internal_tester = models.BooleanField(
         default=False,
         help_text="Designates whether the user bypasses subscription checks."
     )
+    
+    # Make email unique
+    email = models.EmailField(unique=True)
+    
+    # Use email for authentication
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']  # Required when creating superuser
 
     def __str__(self):
-        return self.username
+        return self.email
 
 class SocialAccount(models.Model):
     PROVIDER_CHOICES = (

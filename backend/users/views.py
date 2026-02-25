@@ -5,6 +5,7 @@ from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
 from .serializers import RegisterSerializer, LoginSerializer, SocialLoginSerializer, TokenResponseSerializer, OnboardingSerializer
 from .services import AuthService
@@ -18,16 +19,18 @@ class RegisterView(APIView):
     def post(self, request, *args, **kwargs):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         try:
             user, tokens = AuthService.register(
                 email=serializer.validated_data['email'],
                 password=serializer.validated_data['password'],
                 username=serializer.validated_data.get('username')
             )
+            profile = getattr(user, 'profile', None)
             data = {
-                'user_id': user.id, 
-                'ui_language': getattr(user.profile, 'ui_language', 'en') if hasattr(user, 'profile') else 'en',
+                'user_id': user.id,
+                'ui_language': getattr(profile, 'ui_language', 'en') if profile else 'en',
+                'onboarding_completed': getattr(profile, 'onboarding_completed', False) if profile else False,
                 **tokens
             }
             return Response(data, status=status.HTTP_201_CREATED)
@@ -67,7 +70,12 @@ class GoogleLoginView(APIView):
         serializer.is_valid(raise_exception=True)
         try:
             user, tokens = AuthService.google_login(serializer.validated_data['token'])
-            data = {'user_id': user.id, **tokens}
+            profile = getattr(user, 'profile', None)
+            data = {
+                'user_id': user.id,
+                'onboarding_completed': getattr(profile, 'onboarding_completed', False) if profile else False,
+                **tokens
+            }
             return Response(data, status=status.HTTP_200_OK)
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -81,7 +89,12 @@ class AppleLoginView(APIView):
         serializer.is_valid(raise_exception=True)
         try:
             user, tokens = AuthService.apple_login(serializer.validated_data['token'])
-            data = {'user_id': user.id, **tokens}
+            profile = getattr(user, 'profile', None)
+            data = {
+                'user_id': user.id,
+                'onboarding_completed': getattr(profile, 'onboarding_completed', False) if profile else False,
+                **tokens
+            }
             return Response(data, status=status.HTTP_200_OK)
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -146,6 +159,7 @@ class MeView(APIView):
             'specialization': getattr(profile, 'specialization', None),
             'experience_level': getattr(profile, 'experience_level', None),
             'ui_language': getattr(profile, 'ui_language', 'en'),
+            'onboarding_completed': getattr(profile, 'onboarding_completed', False),
             'total_xp': getattr(profile, 'total_xp', 0),
             'current_level': getattr(profile, 'current_level', 1),
         })

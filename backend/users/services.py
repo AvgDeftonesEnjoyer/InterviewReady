@@ -104,25 +104,35 @@ class AuthService:
             # Get Google's public keys
             jwks_client = AuthService._get_google_jwks_client()
             signing_key = jwks_client.get_signing_key_from_jwt(token)
-            
+
             # SECURITY: Decode and verify the token with all checks
             # - verify_signature: Verify JWT signature
             # - verify_iat: Verify issued-at timestamp
             # - verify_exp: Verify expiration timestamp
             # - verify_aud: Verify audience (must match our Google Client ID)
+            options = {
+                "verify_signature": True,
+                "verify_iat": True,
+                "verify_exp": True,
+            }
+            
+            # Only verify audience if GOOGLE_CLIENT_ID is set
+            if settings.GOOGLE_CLIENT_ID:
+                options["verify_aud"] = True
+                audience = settings.GOOGLE_CLIENT_ID
+            else:
+                options["verify_aud"] = False
+                audience = None
+                logger.warning("GOOGLE_CLIENT_ID not set - skipping audience verification (DEV ONLY)")
+
             idinfo = jwt.decode(
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
-                audience=settings.GOOGLE_CLIENT_ID,  # SECURITY: Verify audience
-                options={
-                    "verify_signature": True,
-                    "verify_iat": True,
-                    "verify_exp": True,
-                    "verify_aud": True,  # SECURITY: Critical - prevents token from other apps
-                }
+                audience=audience,
+                options=options
             )
-            
+
             email = idinfo.get('email')
             provider_user_id = idinfo.get('sub')
 
@@ -132,7 +142,7 @@ class AuthService:
 
             logger.info(f"Google login successful for user: {email}")
             return AuthService._handle_social_login('GOOGLE', provider_user_id, email)
-            
+
         except jwt.ExpiredSignatureError:
             logger.warning("Google login: Token has expired")
             raise ValueError("Google token has expired.")
