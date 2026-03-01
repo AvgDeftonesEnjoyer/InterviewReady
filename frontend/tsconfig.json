@@ -2,6 +2,9 @@
   "compilerOptions": {
     "strict": true,
     "baseUrl": ".",
+    "jsx": "react-native",
+    "lib": ["ES2019"],
+    "types": ["react-native"],
     "paths": {
       "@/*": ["src/*"]
     }

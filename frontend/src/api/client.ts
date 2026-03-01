@@ -16,7 +16,7 @@ let isOnline = true;
 // Listen to network status changes
 NetInfo.addEventListener(state => {
   isOnline = state.isConnected ?? false;
-  console.log('Network status changed:', isOnline ? 'online' : 'offline');
+  if (__DEV__) console.log('Network status changed:', isOnline ? 'online' : 'offline');
 });
 
 export const apiClient = axios.create({
@@ -61,12 +61,12 @@ apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) =>
     const token = await storage.getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('[API] Added auth token to:', config.url);
+      if (__DEV__) console.log('[API] Added auth token to:', config.url);
     } else {
-      console.log('[API] No token found for:', config.url);
+      if (__DEV__) console.log('[API] No token found for:', config.url);
     }
   } else {
-    console.log('[API] Skipping auth for public endpoint:', config.url);
+    if (__DEV__) console.log('[API] Skipping auth for public endpoint:', config.url);
   }
   
   return config;
@@ -88,7 +88,7 @@ apiClient.interceptors.response.use(
         originalRequest.__retryCount += 1;
         const retryDelay = RETRY_DELAY * Math.pow(2, originalRequest.__retryCount - 1); // Exponential backoff
         
-        console.log(`Retrying request (${originalRequest.__retryCount}/${MAX_RETRIES}) after ${retryDelay}ms...`);
+        if (__DEV__) console.log(`Retrying request (${originalRequest.__retryCount}/${MAX_RETRIES}) after ${retryDelay}ms...`);
         await delay(retryDelay);
         
         return apiClient(originalRequest);
@@ -126,7 +126,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         // Refresh failed, logout user
-        console.error('Token refresh failed, logging out user');
+        if (__DEV__) console.error('Token refresh failed, logging out user');
         await storage.clearTokens();
         useAuthStore.getState().logout();
         return Promise.reject(refreshError);
@@ -134,7 +134,7 @@ apiClient.interceptors.response.use(
     }
 
     // Add network error information
-    if (!error.response && error.code === 'NETWORK_ERROR') {
+    if (!error.response && (error.code === 'ERR_NETWORK' || error.message === 'Network Error')) {
       error.message = 'No internet connection. Please check your network and try again.';
     } else if (!error.response && error.code === 'ECONNABORTED') {
       error.message = 'Request timeout. The server took too long to respond.';

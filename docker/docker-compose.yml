@@ -4,18 +4,23 @@ services:
   db:
     image: postgres:15
     environment:
-      POSTGRES_USER: interview
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: interview_db
-    ports:
-      - "5432:5432"
-    volumes:
+      POSTGRES_USER: ${POSTGRES_USER:-interview}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-interview_db}
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-interview} -d ${POSTGRES_DB:-interview_db}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    # Redis port NOT exposed to host — accessible only within Docker network
 
   backend:
     build:
@@ -26,13 +31,17 @@ services:
       - ../backend:/app
     ports:
       - "8000:8000"
+    env_file:
+      - ../backend/.env
     environment:
-      - DEBUG=1
-      - DATABASE_URL=postgres://interview:password123@db:5432/interview_db
+      - DEBUG=0
+      - DATABASE_URL=postgres://${POSTGRES_USER:-interview}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-interview_db}
       - REDIS_URL=redis://redis:6379/1
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   celery_worker:
     build:
@@ -41,13 +50,17 @@ services:
     command: celery -A config worker -l INFO
     volumes:
       - ../backend:/app
+    env_file:
+      - ../backend/.env
     environment:
-      - DEBUG=1
-      - DATABASE_URL=postgres://interview:password123@db:5432/interview_db
+      - DEBUG=0
+      - DATABASE_URL=postgres://${POSTGRES_USER:-interview}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-interview_db}
       - REDIS_URL=redis://redis:6379/1
     depends_on:
-      - backend
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   celery_beat:
     build:
@@ -56,13 +69,17 @@ services:
     command: celery -A config beat -l INFO
     volumes:
       - ../backend:/app
+    env_file:
+      - ../backend/.env
     environment:
-      - DEBUG=1
-      - DATABASE_URL=postgres://interview:password123@db:5432/interview_db
+      - DEBUG=0
+      - DATABASE_URL=postgres://${POSTGRES_USER:-interview}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-interview_db}
       - REDIS_URL=redis://redis:6379/1
     depends_on:
-      - backend
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   frontend:
     build:

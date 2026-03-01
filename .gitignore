@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+
 .venv/
 venv/
 env/
@@ -58,3 +59,6 @@ docker-compose.override.yml
 
 #celery
 celerybeat-schedule*
+
+#claude
+claude.md

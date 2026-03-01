@@ -1,4 +1,5 @@
 import stripe
+import hmac
 import logging
 import requests
 from django.conf import settings
@@ -157,8 +158,9 @@ class StripeCreateCheckoutView(APIView):
 
             logger.info(f"Creating Stripe checkout session with price_id: {price_id}")
             
-            # Use different success URLs for web vs mobile
-            success_url = 'http://localhost:19006/subscription/success?subscription=success' if request.META.get('HTTP_ORIGIN', '').startswith('http://localhost') else 'interviewready://subscription/success?subscription=success'
+            # Use dynamic origin for local web tests, or deep link for mobile
+            origin = request.META.get('HTTP_ORIGIN', 'http://localhost:8081')
+            success_url = f"{origin}/subscription/success?subscription=success" if origin.startswith('http://localhost') else 'interviewready://subscription/success?subscription=success'
             
             session = stripe.checkout.Session.create(
                 customer=sub.stripe_customer_id,
@@ -324,9 +326,10 @@ class RevenueCatWebhookView(APIView):
     }
 
     def post(self, request):
-        # Перевірка авторизації
+        # Перевірка авторизації (constant-time comparison to prevent timing attacks)
         auth = request.META.get('HTTP_AUTHORIZATION', '')
-        if auth != f'Bearer {settings.REVENUECAT_WEBHOOK_AUTH}':
+        expected = f'Bearer {settings.REVENUECAT_WEBHOOK_AUTH}'
+        if not hmac.compare_digest(auth, expected):
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
         event     = request.data.get('event', {})

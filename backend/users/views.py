@@ -7,7 +7,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
-from .serializers import RegisterSerializer, LoginSerializer, SocialLoginSerializer, TokenResponseSerializer, OnboardingSerializer
+from .serializers import RegisterSerializer, LoginSerializer, SocialLoginSerializer, TokenResponseSerializer, OnboardingSerializer, ProfileUpdateSerializer
 from .services import AuthService
 from gamification.models import UserProfile
 
@@ -73,6 +73,8 @@ class GoogleLoginView(APIView):
             profile = getattr(user, 'profile', None)
             data = {
                 'user_id': user.id,
+                'email': user.email,
+                'ui_language': getattr(profile, 'ui_language', 'en') if profile else 'en',
                 'onboarding_completed': getattr(profile, 'onboarding_completed', False) if profile else False,
                 **tokens
             }
@@ -92,6 +94,8 @@ class AppleLoginView(APIView):
             profile = getattr(user, 'profile', None)
             data = {
                 'user_id': user.id,
+                'email': user.email,
+                'ui_language': getattr(profile, 'ui_language', 'en') if profile else 'en',
                 'onboarding_completed': getattr(profile, 'onboarding_completed', False) if profile else False,
                 **tokens
             }
@@ -151,10 +155,17 @@ class MeView(APIView):
     def get(self, request):
         user = request.user
         profile = getattr(user, 'profile', None)
+
+        # Get avatar from linked social account (prefer Google, fallback to any)
+        social = user.social_accounts.filter(provider='GOOGLE').first() \
+                 or user.social_accounts.first()
+        avatar_url = getattr(social, 'avatar_url', None)
+
         return Response({
             'id': user.id,
             'username': user.username,
             'email': user.email,
+            'avatar_url': avatar_url,
             'primary_language': getattr(profile, 'primary_language', None),
             'specialization': getattr(profile, 'specialization', None),
             'experience_level': getattr(profile, 'experience_level', None),
@@ -168,10 +179,11 @@ class MeView(APIView):
         user = request.user
         profile, _ = UserProfile.objects.get_or_create(user=user)
 
-        allowed_fields = ['primary_language', 'specialization', 'experience_level', 'ui_language']
-        for field in allowed_fields:
-            if field in request.data:
-                setattr(profile, field, request.data[field])
+        serializer = ProfileUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        for field, value in serializer.validated_data.items():
+            setattr(profile, field, value)
 
         profile.save()
         return Response({'message': 'Profile updated successfully'})

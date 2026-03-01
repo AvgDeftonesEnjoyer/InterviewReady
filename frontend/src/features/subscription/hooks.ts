@@ -16,8 +16,8 @@ export const useSubscription = () => {
     return useQuery<SubscriptionStatus>({
         queryKey: ['subscription-status'],
         queryFn: async () => {
-            // ✅ CORRECT: Use /subscriptions/status/ endpoint
-            const { data } = await apiClient.get('/subscriptions/status/');
+            // ✅ CORRECT: Use /api/subscriptions/status/ endpoint
+            const { data } = await apiClient.get('/api/subscriptions/status/');
             return data;
         },
     });

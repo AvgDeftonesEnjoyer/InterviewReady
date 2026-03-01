@@ -1,4 +1,5 @@
 import uuid
+from django.db import transaction, IntegrityError
 import logging
 from typing import Tuple, Dict, Any, Optional
 from django.contrib.auth import authenticate
@@ -14,6 +15,11 @@ from .models import User, SocialAccount
 
 logger = logging.getLogger(__name__)
 
+# Module-level singletons for JWKS clients.
+# PyJWKClient uses @lru_cache internally which cannot be pickled for Redis.
+# In-process singleton is safe and correct here.
+_google_jwks_client: Optional['PyJWKClient'] = None
+_apple_jwks_client: Optional['PyJWKClient'] = None
 
 class AuthService:
     """Service handling all authentication logic."""
@@ -40,33 +46,27 @@ class AuthService:
 
     @staticmethod
     def _get_google_jwks_client():
-        """Get or create cached JWKS client for Google."""
-        cache_key = 'google_jwks_client'
-        client = cache.get(cache_key)
-        if client is None:
-            client = PyJWKClient(
+        """Get or create cached JWKS client for Google (in-process singleton)."""
+        global _google_jwks_client
+        if _google_jwks_client is None:
+            _google_jwks_client = PyJWKClient(
                 uri=AuthService.GOOGLE_JWKS_URL,
                 cache_keys=True,
                 max_cached_keys=16,
-                cache_lifetime=AuthService.JWK_CACHE_LIFETIME
             )
-            cache.set(cache_key, client, AuthService.JWK_CACHE_LIFETIME)
-        return client
+        return _google_jwks_client
 
     @staticmethod
     def _get_apple_jwks_client():
-        """Get or create cached JWKS client for Apple."""
-        cache_key = 'apple_jwks_client'
-        client = cache.get(cache_key)
-        if client is None:
-            client = PyJWKClient(
+        """Get or create cached JWKS client for Apple (in-process singleton)."""
+        global _apple_jwks_client
+        if _apple_jwks_client is None:
+            _apple_jwks_client = PyJWKClient(
                 uri=AuthService.APPLE_JWKS_URL,
                 cache_keys=True,
                 max_cached_keys=16,
-                cache_lifetime=AuthService.JWK_CACHE_LIFETIME
             )
-            cache.set(cache_key, client, AuthService.JWK_CACHE_LIFETIME)
-        return client
+        return _apple_jwks_client
 
     @staticmethod
     def register(email: str, password: str, username: str = None) -> Tuple[User, Dict[str, str]]:
@@ -81,14 +81,13 @@ class AuthService:
 
     @staticmethod
     def login_email(email: str, password: str) -> Tuple[User, Dict[str, str]]:
-        # username or email depending on how authenticate is configured
-        # Django's default authenticate uses username. We need to fetch by email first if we use email.
+        # USERNAME_FIELD = 'email', so authenticate() expects email as the username parameter
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             raise ValueError("Email not found.")
 
-        user = authenticate(username=user.username, password=password)
+        user = authenticate(email=email, password=password)
         if not user:
             raise ValueError("Incorrect password.")
         
@@ -140,8 +139,15 @@ class AuthService:
                 logger.warning(f"Google login: Missing email or sub in token payload")
                 raise ValueError("Invalid Google token payload.")
 
+            # Extract optional profile data from Google token
+            display_name = idinfo.get('name') or idinfo.get('given_name')
+            avatar_url = idinfo.get('picture')
+
             logger.info(f"Google login successful for user: {email}")
-            return AuthService._handle_social_login('GOOGLE', provider_user_id, email)
+            return AuthService._handle_social_login(
+                'GOOGLE', provider_user_id, email,
+                display_name=display_name, avatar_url=avatar_url
+            )
 
         except jwt.ExpiredSignatureError:
             logger.warning("Google login: Token has expired")
@@ -219,34 +225,63 @@ class AuthService:
             raise ValueError(f"Apple login failed: {str(e)}")
 
     @staticmethod
-    def _handle_social_login(provider: str, provider_user_id: str, email: str) -> Tuple[User, Dict[str, str]]:
+    def _handle_social_login(
+        provider: str,
+        provider_user_id: str,
+        email: str,
+        display_name: Optional[str] = None,
+        avatar_url: Optional[str] = None,
+    ) -> Tuple[User, Dict[str, str]]:
         """
         Handle social login by finding or creating user account.
         Links the social account to the user.
+        Wrapped in transaction.atomic() to prevent race condition duplicates.
         """
         try:
-            # Try to find existing social account
+            # Try to find existing social account first (outside transaction — fast path)
             account = SocialAccount.objects.get(provider=provider, provider_user_id=provider_user_id)
             user = account.user
             logger.info(f"Social login ({provider}): Existing user found - {user.email}")
+            return user, AuthService._generate_tokens(user)
         except SocialAccount.DoesNotExist:
-            # Check if user with this email already exists
+            pass
+
+        # Slow path: need to find/create user + link social account atomically
+        try:
+            with transaction.atomic():
+                # Check if user with this email already exists
+                try:
+                    user = User.objects.select_for_update().get(email=email)
+                    logger.info(f"Social login ({provider}): Linking to existing user - {email}")
+                except User.DoesNotExist:
+                    # Create new user
+                    username = email.split('@')[0] + str(uuid.uuid4())[:8]
+                    user = User.objects.create_user(username=username, email=email)
+                    logger.info(f"Social login ({provider}): New user created - {email}")
+
+                # Link external account (get_or_create to be safe against concurrent requests)
+                _, created = SocialAccount.objects.get_or_create(
+                    provider=provider,
+                    provider_user_id=provider_user_id,
+                    defaults={
+                        'user': user,
+                        'email': email,
+                        'display_name': display_name,
+                        'avatar_url': avatar_url,
+                    }
+                )
+                if created:
+                    logger.info(f"Social login ({provider}): Account linked successfully")
+                else:
+                    logger.info(f"Social login ({provider}): Account already linked (concurrent request)")
+
+        except IntegrityError as e:
+            logger.error(f"Social login ({provider}): IntegrityError during user creation - {e}")
+            # Another concurrent request created the account — try fetching again
             try:
-                user = User.objects.get(email=email)
-                logger.info(f"Social login ({provider}): Linking to existing user - {email}")
-            except User.DoesNotExist:
-                # Create new user
-                username = email.split('@')[0] + str(uuid.uuid4())[:8]
-                user = User.objects.create_user(username=username, email=email)
-                logger.info(f"Social login ({provider}): New user created - {email}")
-            
-            # Link external account
-            SocialAccount.objects.create(
-                user=user,
-                provider=provider,
-                provider_user_id=provider_user_id,
-                email=email
-            )
-            logger.info(f"Social login ({provider}): Account linked successfully")
+                account = SocialAccount.objects.get(provider=provider, provider_user_id=provider_user_id)
+                user = account.user
+            except SocialAccount.DoesNotExist:
+                raise ValueError(f"Social login failed due to a conflict. Please try again.")
 
         return user, AuthService._generate_tokens(user)

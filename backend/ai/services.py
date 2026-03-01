@@ -53,13 +53,17 @@ class AIService:
     Uses configurable OpenAI model via OPENAI_EVALUATION_MODEL setting.
     """
     
-    @staticmethod
-    def _get_openai_client():
-        """Create OpenAI client."""
-        return openai.OpenAI(
-            api_key=settings.OPENAI_API_KEY,
-            timeout=30
-        )
+    _client = None  # Cached OpenAI client (thread-safe for read access)
+
+    @classmethod
+    def _get_openai_client(cls):
+        """Return a cached OpenAI client to avoid re-creating HTTP sessions."""
+        if cls._client is None:
+            cls._client = openai.OpenAI(
+                api_key=settings.OPENAI_API_KEY,
+                timeout=30
+            )
+        return cls._client
     
     @staticmethod
     def generate_hr_question() -> str:

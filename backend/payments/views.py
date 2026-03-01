@@ -89,7 +89,7 @@ class StripeWebhookView(APIView):
                 customer_id = data.get('customer')
                 if customer_id:
                     Subscription.objects.filter(
-                        user__stripe_customer_id=customer_id
+                        stripe_customer_id=customer_id
                     ).update(status='ACTIVE')
                     
             elif event_type == 'invoice.payment_failed':
@@ -97,7 +97,7 @@ class StripeWebhookView(APIView):
                 customer_id = data.get('customer')
                 if customer_id:
                     Subscription.objects.filter(
-                        user__stripe_customer_id=customer_id
+                        stripe_customer_id=customer_id
                     ).update(status='CANCELED')
 
             return HttpResponse(status=200)

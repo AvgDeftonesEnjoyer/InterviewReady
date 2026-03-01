@@ -71,7 +71,7 @@ class TestAuthService(TestCase):
                 email='nonexistent@example.com',
                 password='wrongpassword'
             )
-        assert "Invalid credentials" in str(excinfo.value)
+        assert "Email not found" in str(excinfo.value)
 
     def test_login_email_wrong_password(self):
         """Test login with wrong password."""
@@ -85,16 +85,20 @@ class TestAuthService(TestCase):
                 email=self.test_email,
                 password='wrongpassword'
             )
-        assert "Invalid credentials" in str(excinfo.value)
+        assert "Incorrect password" in str(excinfo.value)
 
+    @patch('users.services.cache.set')
+    @patch('users.services.cache.get', return_value=None)
     @patch('users.services.jwt.decode')
     @patch('users.services.PyJWKClient')
-    def test_google_login_new_user(self, mock_jwks_client, mock_jwt_decode):
+    def test_google_login_new_user(self, mock_jwks_client, mock_jwt_decode, mock_cache_get, mock_cache_set):
         """Test Google login for new user."""
         # Mock JWT decode
         mock_jwt_decode.return_value = {
             'email': 'google@example.com',
-            'sub': 'google123'
+            'sub': 'google123',
+            'name': 'Google User',
+            'picture': 'https://example.com/photo.jpg',
         }
         
         # Mock JWKS client
@@ -105,14 +109,19 @@ class TestAuthService(TestCase):
         user, tokens = AuthService.google_login('fake_token')
         
         assert user.email == 'google@example.com'
-        assert SocialAccount.objects.filter(
+        social = SocialAccount.objects.filter(
             provider='GOOGLE',
             provider_user_id='google123'
-        ).exists()
+        ).first()
+        assert social is not None
+        assert social.display_name == 'Google User'
+        assert social.avatar_url == 'https://example.com/photo.jpg'
 
+    @patch('users.services.cache.set')
+    @patch('users.services.cache.get', return_value=None)
     @patch('users.services.jwt.decode')
     @patch('users.services.PyJWKClient')
-    def test_google_login_existing_user(self, mock_jwks_client, mock_jwt_decode):
+    def test_google_login_existing_user(self, mock_jwks_client, mock_jwt_decode, mock_cache_get, mock_cache_set):
         """Test Google login for existing user."""
         # Create social account first
         user = User.objects.create_user(
@@ -141,9 +150,11 @@ class TestAuthService(TestCase):
         
         assert logged_user.id == user.id
 
+    @patch('users.services.cache.set')
+    @patch('users.services.cache.get', return_value=None)
     @patch('users.services.jwt.decode')
     @patch('users.services.PyJWKClient')
-    def test_google_login_expired_token(self, mock_jwks_client, mock_jwt_decode):
+    def test_google_login_expired_token(self, mock_jwks_client, mock_jwt_decode, mock_cache_get, mock_cache_set):
         """Test Google login with expired token."""
         import jwt
         mock_jwt_decode.side_effect = jwt.ExpiredSignatureError("Token has expired")
@@ -156,9 +167,11 @@ class TestAuthService(TestCase):
             AuthService.google_login('fake_token')
         assert "expired" in str(excinfo.value).lower()
 
+    @patch('users.services.cache.set')
+    @patch('users.services.cache.get', return_value=None)
     @patch('users.services.jwt.decode')
     @patch('users.services.PyJWKClient')
-    def test_apple_login_new_user(self, mock_jwks_client, mock_jwt_decode):
+    def test_apple_login_new_user(self, mock_jwks_client, mock_jwt_decode, mock_cache_get, mock_cache_set):
         """Test Apple login for new user."""
         # Mock JWT decode
         mock_jwt_decode.return_value = {
@@ -179,9 +192,11 @@ class TestAuthService(TestCase):
             provider_user_id='apple123'
         ).exists()
 
+    @patch('users.services.cache.set')
+    @patch('users.services.cache.get', return_value=None)
     @patch('users.services.jwt.decode')
     @patch('users.services.PyJWKClient')
-    def test_apple_login_invalid_token(self, mock_jwks_client, mock_jwt_decode):
+    def test_apple_login_invalid_token(self, mock_jwks_client, mock_jwt_decode, mock_cache_get, mock_cache_set):
         """Test Apple login with invalid token."""
         import jwt
         mock_jwt_decode.side_effect = jwt.InvalidTokenError("Invalid token")

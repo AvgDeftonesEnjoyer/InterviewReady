@@ -41,11 +41,22 @@ export default function App() {
               email: data.email,
               onboarding_completed: data.onboarding_completed
             });
-          } catch (error) {
-            // Token invalid — clear and require login
-            console.log('Token invalid, requiring login');
-            await storage.clearAuth();
-            setUser(null, false);
+          } catch (error: any) {
+            const isNetworkError =
+              !error.response &&
+              (error.code === 'ERR_NETWORK' || error.message === 'Network Error');
+
+            if (isNetworkError) {
+              // Device is offline — keep tokens, show login screen temporarily
+              // User will be restored when they regain connectivity
+              console.log('Offline on startup — keeping tokens, showing login');
+              setUser(null, false);
+            } else {
+              // Token is genuinely invalid (401 or other auth error) — clear and require login
+              console.log('Token invalid, requiring login');
+              await storage.clearAuth();
+              setUser(null, false);
+            }
           }
         }
       } catch (error) {

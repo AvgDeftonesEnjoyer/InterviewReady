@@ -84,7 +84,7 @@ export const SubscriptionScreen = () => {
     setLoading(true);
     try {
       // Завантажити статус підписки з нашого API
-      const { data } = await apiClient.get('/subscriptions/status/');
+      const { data } = await apiClient.get('/api/subscriptions/status/');
       setStatus(data);
 
       // Завантажити пакети з RevenueCat (для iOS)

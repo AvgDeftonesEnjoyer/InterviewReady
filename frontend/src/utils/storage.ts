@@ -44,5 +44,9 @@ export const storage = {
       await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
       await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
     }
+  },
+  // Alias for clearTokens — used in session restore logic
+  async clearAuth() {
+    return storage.clearTokens();
   }
 };

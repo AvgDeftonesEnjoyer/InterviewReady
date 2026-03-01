@@ -31,6 +31,8 @@ class SocialAccount(models.Model):
     provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
     provider_user_id = models.CharField(max_length=255)
     email = models.EmailField()
+    display_name = models.CharField(max_length=255, blank=True, null=True)
+    avatar_url = models.URLField(max_length=1024, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

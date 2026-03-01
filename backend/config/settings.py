@@ -29,8 +29,10 @@ CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
     'http://localhost:8081',
     'http://127.0.0.1:8081',
     'http://localhost:19006',  # Expo web
-    'http://192.168.1.',  # Expo mobile on LAN
+    # For LAN access on Expo mobile, add your full IP in .env:
+    # CSRF_TRUSTED_ORIGINS=http://192.168.1.100:8081
 ])
+
 
 INSTALLED_APPS = [
     'django.contrib.admin',

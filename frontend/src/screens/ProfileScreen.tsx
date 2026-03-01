@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
@@ -44,6 +45,7 @@ const EXPERIENCE_LEVELS = [
 interface ProfileData {
   username: string;
   email: string;
+  avatar_url: string | null;
   primary_language: string | null;
   specialization: string | null;
   experience_level: string | null;
@@ -62,6 +64,7 @@ export const ProfileScreen = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pickerField, setPickerField] = useState<PickerField>(null);
+  const [avatarError, setAvatarError] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -140,6 +143,7 @@ export const ProfileScreen = () => {
   const initials = profile?.username
     ? profile.username.slice(0, 2).toUpperCase()
     : profile?.email?.slice(0, 2).toUpperCase() || '??';
+  const showImage = !!profile?.avatar_url && !avatarError;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -148,7 +152,15 @@ export const ProfileScreen = () => {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>{initials}</Text>
+            {showImage ? (
+              <Image
+                source={{ uri: profile!.avatar_url! }}
+                style={styles.avatarImage}
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <Text style={styles.avatarText}>{initials}</Text>
+            )}
           </View>
           <Text style={styles.username}>{profile?.username || 'User'}</Text>
           <Text style={styles.email}>{profile?.email}</Text>
@@ -315,6 +327,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 8,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   avatarText: {
     fontSize: 28,

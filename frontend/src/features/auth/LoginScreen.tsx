@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,6 +9,7 @@ import { storage } from '../../utils/storage';
 import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
 import { AnimatedInput } from '../../components/AnimatedInput';
+import { changeLanguage } from '../../i18n';
 // Google Auth via Expo
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
@@ -25,6 +26,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export const LoginScreen = () => {
   const navigation = useNavigation<any>();
   const setUser = useAuthStore((state) => state.setUser);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   
   const { control, handleSubmit, setError, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -44,9 +46,11 @@ export const LoginScreen = () => {
       
       setUser({ id: user_id, email: data.email }, !!onboarding_completed);
     } catch (error: any) {
-      console.error('Login Error Object:', error);
-      console.error('Login Response Data:', error.response?.data);
-      console.error('Login Message:', error.message);
+      if (__DEV__) {
+        console.error('Login Error Object:', error);
+        console.error('Login Response Data:', error.response?.data);
+        console.error('Login Message:', error.message);
+      }
       
       let errorMessage = 'Login failed. Please check your credentials.';
       if (error.response?.data?.error) {
@@ -75,6 +79,8 @@ export const LoginScreen = () => {
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'YOUR_WEB_CLIENT_ID',
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'YOUR_IOS_CLIENT_ID',
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'YOUR_ANDROID_CLIENT_ID',
+    scopes: ['openid', 'profile', 'email'],
+    responseType: 'id_token',
   });
 
   // Effect to handle the Google Auth response
@@ -84,10 +90,21 @@ export const LoginScreen = () => {
       if (authentication?.idToken) {
         handleGoogleBackendLogin(authentication.idToken);
       } else {
-        toast.error('Google Sign-In failed: No ID token returned.');
+        // idToken not in authentication object — try params (web flow)
+        const idTokenFromParams = (response.params as any)?.id_token;
+        if (idTokenFromParams) {
+          handleGoogleBackendLogin(idTokenFromParams);
+        } else {
+          setIsGoogleLoading(false);
+          toast.error('Google Sign-In failed: No ID token returned.');
+        }
       }
     } else if (response?.type === 'error') {
+      setIsGoogleLoading(false);
       toast.error('Google Sign-In failed. Please try again.');
+    } else if (response?.type === 'dismiss') {
+      // User cancelled the Google OAuth window — reset loading state
+      setIsGoogleLoading(false);
     }
   }, [response]);
 
@@ -103,18 +120,19 @@ export const LoginScreen = () => {
         await changeLanguage(ui_language);
       }
 
-      // We might not get the user's email directly from the Expo res without decoding,
-      // but the backend handles it and we can just set the id state. 
-      setUser({ id: user_id, email: email || 'user@example.com' }, !!onboarding_completed);
+      setUser({ id: user_id, email: email || '' }, !!onboarding_completed);
       toast.success('Successfully logged in with Google!');
 
     } catch (error: any) {
-      console.error('Google Login Backend Error:', error);
+      if (__DEV__) console.error('Google Login Backend Error:', error);
       toast.error('Failed to authenticate with our servers.');
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
   const handleGoogleLoginPress = () => {
+    setIsGoogleLoading(true);
     promptAsync();
   };
 
@@ -176,11 +194,14 @@ export const LoginScreen = () => {
 
       <View style={styles.socialContainer}>
         <TouchableOpacity 
-          style={styles.socialButton} 
+          style={[styles.socialButton, (isGoogleLoading || !request) && styles.socialButtonDisabled]} 
           onPress={handleGoogleLoginPress}
-          disabled={!request}
+          disabled={isGoogleLoading || !request}
         >
-          <Text style={styles.socialButtonText}>Google Sign-In</Text>
+          {isGoogleLoading
+            ? <ActivityIndicator color="#000" />
+            : <Text style={styles.socialButtonText}>Google Sign-In</Text>
+          }
         </TouchableOpacity>
         <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000' }]}>
           <Text style={[styles.socialButtonText, { color: '#FFF' }]}>Apple Sign-In</Text>

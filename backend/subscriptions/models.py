@@ -94,12 +94,11 @@ class Subscription(models.Model):
 
     @property
     def is_valid(self):
+        """Check if subscription is currently valid. Pure read — no DB writes."""
         if self.status != self.Status.ACTIVE:
             return False
         if self.expires_at and self.expires_at < timezone.now():
-            # Auto-expire if past expiry date
-            self.status = self.Status.EXPIRED
-            self.save(update_fields=['status'])
+            # Note: Expired subscriptions are cleaned up by a Celery task, not here.
             return False
         return True
 
