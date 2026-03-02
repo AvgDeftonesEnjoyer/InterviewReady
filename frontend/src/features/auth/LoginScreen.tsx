@@ -7,12 +7,13 @@ import { useNavigation } from '@react-navigation/native';
 import { apiClient } from '../../api/client';
 import { storage } from '../../utils/storage';
 import { useAuthStore } from '../../store/useAuthStore';
-import toast from 'react-hot-toast';
+import Toast from 'react-native-toast-message';
 import { AnimatedInput } from '../../components/AnimatedInput';
 import { changeLanguage } from '../../i18n';
 // Google Auth via Expo
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -70,17 +71,31 @@ export const LoginScreen = () => {
          errorMessage = 'Server is unreachable. Please ensure the backend is running.';
       }
 
-      toast.error(errorMessage, { duration: 4000 });
+      Toast.show({ type: 'error', text1: 'Login Failed', text2: errorMessage, visibilityTime: 4000 });
     }
   };
 
-  // Setup Google Auth Session
+  // redirectUri behavior:
+  //   Expo Go (not logged in): exp://192.168.x.x:8081/--/auth  ← add to Google Console
+  //   Expo Go (logged in):     https://auth.expo.io/@user/slug  ← add to Google Console
+  //   Native build:            interviewready://auth
+  const redirectUri = React.useMemo(() => makeRedirectUri({
+    scheme: 'interviewready',
+    path: 'auth',
+  }), []);
+
+  React.useEffect(() => {
+    if (__DEV__) console.log('[Google OAuth] redirectUri =', redirectUri);
+  }, [redirectUri]);
+
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'YOUR_WEB_CLIENT_ID',
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'YOUR_IOS_CLIENT_ID',
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'YOUR_ANDROID_CLIENT_ID',
     scopes: ['openid', 'profile', 'email'],
     responseType: 'id_token',
+    useIdToken: true,
+    redirectUri,
   });
 
   // Effect to handle the Google Auth response
@@ -96,14 +111,13 @@ export const LoginScreen = () => {
           handleGoogleBackendLogin(idTokenFromParams);
         } else {
           setIsGoogleLoading(false);
-          toast.error('Google Sign-In failed: No ID token returned.');
+          Toast.show({ type: 'error', text1: 'Sign-In Failed', text2: 'Google Sign-In failed: No ID token returned.' });
         }
       }
     } else if (response?.type === 'error') {
       setIsGoogleLoading(false);
-      toast.error('Google Sign-In failed. Please try again.');
-    } else if (response?.type === 'dismiss') {
-      // User cancelled the Google OAuth window — reset loading state
+      Toast.show({ type: 'error', text1: 'Sign-In Failed', text2: 'Google Sign-In failed. Please try again.' });
+    } else if (response?.type === 'dismiss' || response?.type === 'cancel') {
       setIsGoogleLoading(false);
     }
   }, [response]);
@@ -121,11 +135,11 @@ export const LoginScreen = () => {
       }
 
       setUser({ id: user_id, email: email || '' }, !!onboarding_completed);
-      toast.success('Successfully logged in with Google!');
+      Toast.show({ type: 'success', text1: 'Welcome!', text2: 'Successfully logged in with Google!' });
 
     } catch (error: any) {
       if (__DEV__) console.error('Google Login Backend Error:', error);
-      toast.error('Failed to authenticate with our servers.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to authenticate with our servers.' });
     } finally {
       setIsGoogleLoading(false);
     }
@@ -203,8 +217,8 @@ export const LoginScreen = () => {
             : <Text style={styles.socialButtonText}>Google Sign-In</Text>
           }
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000' }]}>
-          <Text style={[styles.socialButtonText, { color: '#FFF' }]}>Apple Sign-In</Text>
+        <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000', opacity: 0.5 }]} disabled>
+          <Text style={[styles.socialButtonText, { color: '#FFF' }]}>Apple Sign-In (Coming Soon)</Text>
         </TouchableOpacity>
       </View>
     </View>

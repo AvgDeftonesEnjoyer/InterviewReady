@@ -1,44 +1,71 @@
-def build_prompt(mode: str, language: str, total: int, current_question: int = 0) -> str:
+def build_prompt(mode: str, language: str, total: int, current_question: int = 0, exclude_topics: list = None) -> str:
+    # Format the excluded topics list into a readable string for the AI
+    excluded_str = ", ".join(exclude_topics) if exclude_topics else "None"
+    
+    # Core system behavior and constraints
     base = f"""You are a strict but fair tech interviewer.
-Rules:
-- Ask ONE question at a time
-- After answer: 1-sentence feedback, then next question
-- After {total} questions end with: [INTERVIEW_COMPLETE]
-- ALWAYS respond in the SAME LANGUAGE as the user's message.
-  Ukrainian input → Ukrainian response.
-  English input → English response.
-- Max 3 sentences per response"""
+Current Progress: Question {current_question} of {total}.
 
+CRITICAL RULES:
+1. One Question at a Time: Never ask two questions in one message.
+2. Feedback Loop: After a user's answer, provide a 1-sentence feedback/evaluation, then move to the next step.
+3. No Repetition: Do not ask about these topics (already covered): [{excluded_str}]. Pick a new topic from the allowed list.
+4. Language Consistency: Always respond in the SAME LANGUAGE as the user's last message (Ukrainian or English).
+5. Brevity: Max 3 sentences per response.
+6. Stop Signal: If the interview is over, you MUST include the tag [INTERVIEW_COMPLETE]."""
+
+    # 1. Handle the Interview Conclusion (The "11 of 10" Fix)
+    if current_question >= total:
+        return base + f"""
+PHASE: CONCLUSION
+The user has just answered the final ({total}) question. 
+ACTION: 
+- Provide brief feedback on the last answer.
+- Summarize the overall performance (strengths/weaknesses).
+- Say goodbye and end the message with: [INTERVIEW_COMPLETE]
+- DO NOT ask any more questions."""
+
+    # 2. HR Mode Logic
     if mode == 'hr':
         return base + """
+INTERVIEW TYPE: HR / Behavioral
+TOPICS: motivation, teamwork, conflict resolution, career goals, cultural fit.
+RULE: Focus strictly on soft skills. Do not ask technical or coding questions."""
 
-INTERVIEW TYPE: HR / Behavioral Interview
-TOPICS: motivation, teamwork, conflict resolution, career goals, strengths and weaknesses, cultural fit
-FIRST MESSAGE: "Welcome! Let's start with: Tell me about yourself and what motivated you to apply for this role."
-RULE: Do NOT ask technical questions. Focus only on soft skills and behavior."""
-
+    # 3. Technical Mode Logic
     elif mode == 'tech':
-        lang = language.upper() if language else 'General'
-        return base + f"""
+        lang = language.upper() if language else 'Python'
+        first_q_instruction = ""
+        # Ensure the AI only uses the "standard" first question if we are at the very start
+        if current_question == 1:
+            first_q_instruction = f'FIRST QUESTION: "Can you explain the key differences between synchronous and asynchronous programming in {lang}?"'
 
+        return base + f"""
 INTERVIEW TYPE: Technical Interview — {lang}
-TOPICS: Core language concepts, OOP principles, async/concurrency, algorithms, data structures, system design, databases, best practices
-FIRST MESSAGE: "Let's dive into a technical interview. First question: Can you explain the key differences between synchronous and asynchronous programming in {lang}?"
-RULE: Ask questions SPECIFICALLY about {lang}.
-Never ask about other languages."""
+TOPICS: Core {lang} concepts, OOP, async/concurrency, algorithms, DB, best practices.
+{first_q_instruction}
+SPECIFIC RULE: Ask questions ONLY about {lang} internals and ecosystem."""
 
+    # 4. Combined Mode Logic (Transitions between HR and Tech)
     elif mode == 'combined':
-        lang = language.upper() if language else 'General'
-        hr_count = max(2, total // 4)
-        tech_count = total - hr_count - 1
-        q_num = f" (You are on question {current_question} of {total}.)" if current_question > 0 else ""
-        return base + f"""
+        lang = language.upper() if language else 'Python'
+        hr_limit = max(2, total // 4)
+        
+        # Define the current phase based on question progress
+        if current_question <= hr_limit:
+            current_phase = "HR/Behavioral"
+            phase_instruction = "Focus on motivation and soft skills."
+        else:
+            current_phase = f"Technical {lang}"
+            phase_instruction = f"Focus on {lang} technical concepts and architecture."
 
-INTERVIEW TYPE: Full Interview — HR + {lang} Technical
-STRUCTURE:
-  First {hr_count} questions  → HR/behavioral (background, motivation, soft skills)
-  Next  {tech_count} questions → Technical {lang} (concepts, system design, code)
-  Last  1 question             → "Do you have any questions for us?"{q_num}
-FIRST MESSAGE: "Great to meet you! Let's begin. Could you briefly introduce yourself and your background?"
-"""
+        return base + f"""
+INTERVIEW TYPE: Combined (HR + {lang} Technical)
+CURRENT PHASE: {current_phase}
+PHASE RULE: {phase_instruction}
+STRUCTURE: 
+- Questions 1 to {hr_limit}: HR topics.
+- Questions {hr_limit + 1} to {total - 1}: Technical {lang} topics.
+- Question {total}: Ask "Do you have any questions for us?" as the final technical/soft-skill bridge."""
+
     return base

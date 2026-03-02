@@ -7,7 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { apiClient } from '../../api/client';
 import { storage } from '../../utils/storage';
 import { useAuthStore } from '../../store/useAuthStore';
-import toast from 'react-hot-toast';
+import Toast from 'react-native-toast-message';
 import { AnimatedInput } from '../../components/AnimatedInput';
 
 const registerSchema = z.object({
@@ -36,9 +36,11 @@ export const RegisterScreen = () => {
       
       setUser({ id: user_id, email: data.email, username: data.username }, false);
     } catch (error: any) {
-      console.error('Registration Error Object:', error);
-      console.error('Registration Response Data:', error.response?.data);
-      console.error('Registration Message:', error.message);
+      if (__DEV__) {
+        console.error('Registration Error Object:', error);
+        console.error('Registration Response Data:', error.response?.data);
+        console.error('Registration Message:', error.message);
+      }
       
       let errorMessage = 'Registration failed. Please try again later.';
       if (error.response?.data) {
@@ -64,7 +66,7 @@ export const RegisterScreen = () => {
          errorMessage = 'Server is unreachable. Please ensure the backend is running.';
       }
       
-      toast.error(errorMessage, { duration: 4000 });
+      Toast.show({ type: 'error', text1: 'Registration Failed', text2: errorMessage, visibilityTime: 4000 });
     }
   };
 

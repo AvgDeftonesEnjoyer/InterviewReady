@@ -5,18 +5,24 @@ from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenRefreshView
-from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
 from .serializers import RegisterSerializer, LoginSerializer, SocialLoginSerializer, TokenResponseSerializer, OnboardingSerializer, ProfileUpdateSerializer
 from .services import AuthService
 from gamification.models import UserProfile
 
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = []
 
-    @method_decorator(ratelimit(key='ip', rate='5/h', block=True))
+    @method_decorator(ratelimit(key='ip', rate='20/h', block=False))
     def post(self, request, *args, **kwargs):
+        if getattr(request, 'limited', False):
+            return Response(
+                {'error': 'Too many registration attempts. Please try again later.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -40,8 +46,13 @@ class RegisterView(APIView):
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
-    @method_decorator(ratelimit(key='ip', rate='10/h', block=True))
+    @method_decorator(ratelimit(key='ip', rate='20/h', block=False))
     def post(self, request, *args, **kwargs):
+        if getattr(request, 'limited', False):
+            return Response(
+                {'error': 'Too many login attempts. Please try again later.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
@@ -64,8 +75,13 @@ class LoginView(APIView):
 class GoogleLoginView(APIView):
     permission_classes = [AllowAny]
 
-    @method_decorator(ratelimit(key='ip', rate='10/h', block=True))
+    @method_decorator(ratelimit(key='ip', rate='20/h', block=False))
     def post(self, request, *args, **kwargs):
+        if getattr(request, 'limited', False):
+            return Response(
+                {'error': 'Too many requests. Please try again later.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
         serializer = SocialLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -85,8 +101,13 @@ class GoogleLoginView(APIView):
 class AppleLoginView(APIView):
     permission_classes = [AllowAny]
 
-    @method_decorator(ratelimit(key='ip', rate='10/h', block=True))
+    @method_decorator(ratelimit(key='ip', rate='20/h', block=False))
     def post(self, request, *args, **kwargs):
+        if getattr(request, 'limited', False):
+            return Response(
+                {'error': 'Too many requests. Please try again later.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
         serializer = SocialLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -107,9 +128,13 @@ class AppleLoginView(APIView):
 class CustomTokenRefreshView(TokenRefreshView):
     permission_classes = [AllowAny]
     
-    # SECURITY: Rate limiting on token refresh to prevent brute force
-    @method_decorator(ratelimit(key='ip', rate='30/h', block=True))
+    @method_decorator(ratelimit(key='ip', rate='60/h', block=False))
     def post(self, request, *args, **kwargs):
+        if getattr(request, 'limited', False):
+            return Response(
+                {'error': 'Too many refresh attempts. Please try again later.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
         return super().post(request, *args, **kwargs)
 
 class OnboardingView(APIView):

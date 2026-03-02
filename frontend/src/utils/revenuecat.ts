@@ -10,7 +10,13 @@ const REVENUECAT_KEYS = {
 }
 
 export const initRevenueCat = async (userId: string) => {
-  Purchases.setLogLevel(Purchases.LOG_LEVEL.DEBUG)
+  try {
+    if (__DEV__) {
+      Purchases.setLogLevel(Purchases.LOG_LEVEL.DEBUG)
+    }
+  } catch {
+    // setLogLevel can crash on some SDK versions with React 19 — safe to ignore
+  }
 
   await Purchases.configure({
     apiKey: Platform.OS === 'ios'

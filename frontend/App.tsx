@@ -4,7 +4,7 @@ import { RootNavigator } from './src/navigation';
 import { useAuthStore } from './src/store/useAuthStore';
 import { storage } from './src/utils/storage';
 import { apiClient } from './src/api/client';
-import { Toaster } from 'react-hot-toast';
+import Toast from 'react-native-toast-message';
 import { initI18n } from './src/i18n';
 
 const queryClient = new QueryClient();
@@ -74,7 +74,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RootNavigator />
-      <Toaster position="top-center" reverseOrder={true} />
+      <Toast />
     </QueryClientProvider>
   );
 }

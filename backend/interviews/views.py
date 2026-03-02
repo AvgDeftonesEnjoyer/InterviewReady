@@ -59,7 +59,7 @@ class StartInterviewView(APIView):
 
         # 4. Generate first message from AI
         # (Errors like OpenAITimeoutError are caught globally via custom_exception_handler)
-        system_prompt = build_prompt(mode, language, count)
+        system_prompt = build_prompt(mode, language, count, current_question=1)
         first_message = await aget_ai_response(system_prompt, [
             {'role': 'user', 'content': 'Start the interview.'}
         ])
@@ -92,6 +92,7 @@ class SendMessageView(APIView):
     async def _async_post(self, request, session_id):
         user = await sync_to_async(lambda: request.user)()
 
+        # Fetch the active session for the current user
         session = await aget_object_or_404(
             InterviewSession,
             id=session_id,
@@ -103,30 +104,54 @@ class SendMessageView(APIView):
         if not content:
             return Response({'error': 'Empty message'}, status=400)
 
-        # Add user message
+        # 1. Append user's response to the message history
         session.messages.append({'role': 'user', 'content': content})
 
-        # Build prompt and get AI response
-        # (Errors like OpenAITimeoutError are caught globally via custom_exception_handler)
+        # 2. Prevent repetition: Extract keywords from previous assistant questions
+        # This prevents the AI from asking about "decorators" or "GIL" twice
+        tech_keywords = ['decorator', 'generator', 'gil', 'async', 'multithreading', 'queryset', 'middleware', 'index', 'solid']
+        exclude_topics = []
+        
+        # Combine all previous assistant messages into one string to scan for keywords
+        assistant_text = " ".join([m['content'].lower() for m in session.messages if m['role'] == 'assistant'])
+        
+        for word in tech_keywords:
+            if word in assistant_text:
+                exclude_topics.append(word)
+
+        # 3. Boundary check: Determine if this is the final interaction
+        # If current_question is already at the target, the next AI response must be the end
+        is_last_iteration = session.question_count >= session.question_count_target
+
+        # 4. Generate the system prompt with context and exclusion list
         system_prompt = build_prompt(
             session.mode,
             session.language,
             session.question_count_target,
-            current_question=session.question_count
+            current_question=session.question_count,
+            exclude_topics=exclude_topics  # Pass detected topics to the prompt generator
         )
+
+        # Get response from OpenAI/Gemini
         ai_response = await aget_ai_response(system_prompt, session.messages)
 
-        # Check completion signal
-        is_complete = '[INTERVIEW_COMPLETE]' in ai_response
+        # 5. Determine completion status
+        # Either the AI included the tag, or we force-complete because the limit was reached
+        is_complete = '[INTERVIEW_COMPLETE]' in ai_response or is_last_iteration
+        
+        # Clean the response for the user
         ai_response = ai_response.replace('[INTERVIEW_COMPLETE]', '').strip()
 
         session.messages.append({'role': 'assistant', 'content': ai_response})
 
-        if not is_complete:
-            session.question_count += 1
-        else:
+        # 6. Finalize state
+        if is_complete:
+            # Mark session as finished to prevent further messages
             session.status = InterviewSession.Status.COMPLETED
             session.finished_at = timezone.now()
+        else:
+            # Increment the counter only if the interview continues
+            session.question_count += 1
 
         await session.asave()
 

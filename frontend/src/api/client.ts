@@ -4,7 +4,9 @@ import { useAuthStore } from '../store/useAuthStore';
 import NetInfo from '@react-native-community/netinfo';
 
 // Local dev API URL
-export const API_URL = __DEV__ ? 'http://127.0.0.1:8000' : 'https://your-production-api.com';
+// For physical device via Expo Go: set EXPO_PUBLIC_API_URL to your Mac's local IP, e.g. http://192.168.3.155:8000
+// For web/simulator: http://localhost:8000 works fine
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? (__DEV__ ? 'http://localhost:8000' : 'https://your-production-api.com');
 
 // Retry configuration
 const MAX_RETRIES = 3;
