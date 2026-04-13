@@ -1,3 +1,4 @@
+// Native-only (iOS / Android) — Metro picks revenuecat.web.ts for web automatically.
 import Purchases, {
   PurchasesPackage,
   CustomerInfo,
@@ -9,7 +10,7 @@ const REVENUECAT_KEYS = {
   android: 'goog_xxxxxxxxxx',  // з RevenueCat dashboard
 }
 
-export const initRevenueCat = async (userId: string) => {
+export const initRevenueCat = async (userId: string): Promise<void> => {
   try {
     if (__DEV__) {
       Purchases.setLogLevel(Purchases.LOG_LEVEL.DEBUG)
@@ -22,11 +23,11 @@ export const initRevenueCat = async (userId: string) => {
     apiKey: Platform.OS === 'ios'
       ? REVENUECAT_KEYS.ios
       : REVENUECAT_KEYS.android,
-    appUserID: userId,  // наш user.id як ідентифікатор
+    appUserID: userId,
   })
 }
 
-export const getOfferings = async () => {
+export const getOfferings = async (): Promise<PurchasesPackage[]> => {
   try {
     const offerings = await Purchases.getOfferings()
     return offerings.current?.availablePackages || []
@@ -36,7 +37,7 @@ export const getOfferings = async () => {
   }
 }
 
-export const purchasePackage = async (pkg: PurchasesPackage) => {
+export const purchasePackage = async (pkg: PurchasesPackage): Promise<CustomerInfo> => {
   const { customerInfo } = await Purchases.purchasePackage(pkg)
   return customerInfo
 }

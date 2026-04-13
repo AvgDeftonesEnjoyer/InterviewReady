@@ -11,5 +11,4 @@ urlpatterns = [
     path('ai/', include('ai.urls')),
     path('progress/', include('progress.urls')),
     path('api/subscriptions/', include('subscriptions.urls')),
-    # path('webhooks/', include('payments.urls')), # OBSOLETE: Handled by subscriptions app
 ]

@@ -17,7 +17,7 @@ import { PlanCard } from '../components/PlanCard';
 import { PLANS } from '../config/plans';
 import { ActivityIndicator } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
-import { PurchasesPackage } from 'react-native-purchases';
+// react-native-purchases is lazy-loaded in revenuecat.ts (web-safe)
 import { getOfferings, purchasePackage, restorePurchases } from '../utils/revenuecat';
 
 // Declare window for TypeScript (web only)
@@ -30,7 +30,7 @@ declare global {
 export const SubscriptionScreen = () => {
   const navigation = useNavigation<any>();
   const [status, setStatus]       = useState<any>(null);
-  const [packages, setPackages]   = useState<PurchasesPackage[]>([]);
+  const [packages, setPackages]   = useState<any[]>([]);
   const [cycle, setCycle]         = useState<'monthly' | 'annual'>('monthly');
   const [loading, setLoading]     = useState(true);
   const [purchasing, setPurchasing] = useState(false);

@@ -86,7 +86,7 @@ services:
     build:
       context: ../frontend
       dockerfile: ../docker/frontend.Dockerfile
-    command: npm run web
+    command: npx expo start --web --reset-cache
     tty: true
     ports:
       - "8081:8081"
